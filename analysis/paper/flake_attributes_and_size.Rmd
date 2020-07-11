@@ -1,0 +1,576 @@
+---
+title: "Guanyingdong Stone Artefact Assemblage Report: Variation by Size"
+author: "HY and BM"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+   bookdown::word_document2:
+    fig_caption: yes
+    reference_docx: templates/template.docx
+---
+
+```{r setup-flake-size, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Nature’s standard figure sizes are 89 mm (single column) and 183 mm (double column)
+ # https://www.nature.com/nature/for-authors/formatting-guide
+```
+
+THe reviewers ask:
+
+>  can they offer other data that might elucidate changes in flaking type with reduction, e.g. changes in flake attributes that correlate with size declines?
+
+
+Read in the data, deal with dupicates, get the basic flake details, run to L454 of hu_artefacts_report.Rmd, then continue from here. 
+
+Let's see if there are any natural groupings in flake mass:
+
+```{r}
+
+flake_hist_1 <- 
+ggplot(flakes,
+       aes(mass)) +
+  geom_histogram() +
+  theme_minimal() +
+  xlab("Mass (g)")
+
+flake_hist_2 <- 
+ggplot(flakes,
+       aes(mass)) +
+  geom_histogram() +
+  theme_minimal() +
+  scale_x_log10() +
+  xlab("Mass (g)")
+
+
+library(cowplot)
+
+flake_mass_distributions <- plot_grid(flake_hist_1, flake_hist_2, ncol = 1)
+
+```
+
+Nothing obvious, let's try a little clustering. We will try univariate clustering:
+
+```{r}
+require(Ckmeans.1d.dp)
+result <- Ckmeans.1d.dp(flakes$mass[!is.na(flakes$mass)])
+plot(result)
+
+n_clusters <- length(result$size)
+n_clusters_30 <- length(result$size[result$size > 30])
+
+# assign cluster ID to table
+flakes_clustered <- 
+flakes %>% 
+  filter(!is.na(mass)) %>% 
+  mutate(cluster = result$cluster) %>% 
+  right_join(flakes) %>% 
+  filter(cluster %in% 1:n_clusters_30)
+```
+
+
+We get `r n_clusters` clusters, with `r n_clusters_30` that have more than 30 artefacts in them
+
+```{r}
+ggplot(flakes_clustered,
+       aes(mass, 
+          length,
+          colour = factor(cluster)))+
+  geom_point()
+
+flake_hist_with_clusters <- 
+ggplot(flakes_clustered,
+       aes(mass)) +
+  geom_histogram(aes(fill = factor(cluster))) +
+  annotate("text", x = 240, y = 120, label = glue::glue('Total number of artefacts in sample: {nrow(flakes_clustered)}')) +
+  scale_fill_viridis_d(name = "Size class") +
+  theme_minimal() +
+  xlab("Mass (g)")  +
+  coord_equal(ratio = 0.2) +
+  theme(legend.position = c(.75, .75),
+        legend.direction = "horizontal",
+        legend.key.size = unit(0.6,"line"),
+        legend.key.width = unit(0.6,"line"),
+        legend.key.height = unit(0.6,"line"),
+        legend.text = element_text(size=8),
+        legend.box.background = element_rect(fill = "white", colour = "white"))
+```
+
+Now let's see how some of the key variables change accross these size clusters:
+
+We see that some dimensions don't increase with size. Platform thickness decreases a little, as mass goes up, platform width becomes more variable. Scar numbers have less high outliers as size increases. 
+
+```{r}
+
+library(stringr)
+# get sample sizes
+flakes_clustered_numeric_vars_sample_sizes <- 
+flakes_clustered %>% 
+  select_if(is.numeric) %>%
+  gather(variable, value, -cluster) %>% 
+  mutate(variable = str_to_title(str_replace_all(variable, "_", " "))) %>% 
+  filter(!is.na(value)) %>% 
+  mutate(variable = str_replace_all(variable, "%", "% ")) %>% 
+  mutate(cluster = factor(cluster)) %>% 
+  group_by(variable) %>% 
+  tally()
+
+# add measurement units
+flakes_clustered_numeric_vars_sample_sizes$units <- 
+  c("", 
+    "mm, ",
+    "g, ",
+    "mm, ",
+    "mm, ",
+    "mm, ",
+    "mm, ",
+    "mm, ",
+    "",
+    "mm, ",
+    "mm, ",
+    "mm, ",
+    "mm, ",
+    "mm, ",
+    "mm, ")
+
+
+
+flakes_clustered_numeric_vars_plot <- 
+flakes_clustered %>% 
+  select_if(is.numeric) %>%
+  gather(variable, value, -cluster) %>% 
+  mutate(variable = str_to_title(str_replace_all(variable, "_", " "))) %>% 
+  filter(!is.na(value)) %>% 
+  mutate(variable = str_replace_all(variable, "%", "% ")) %>% 
+  mutate(cluster = factor(cluster)) %>% 
+  left_join(flakes_clustered_numeric_vars_sample_sizes) %>% 
+  # mutate(variable = glue::glue('{variable} ({units}n = {n})')) %>% 
+  ggplot(aes(cluster,
+             value)) +
+  geom_boxplot() +
+  facet_wrap( ~ variable, scales = "free_y") +
+  xlab("Size class") +
+  ylab("") +
+  theme_minimal(base_size = 8)
+
+figure_one <- 
+cowplot::plot_grid(flake_hist_with_clusters, 
+                   flakes_clustered_numeric_vars_plot,
+                   labels = "AUTO", 
+                   ncol = 1, 
+                   align = 'v', 
+                   axis = 'lr', 
+                   rel_heights = c(0.5, 1.5)) # 
+
+save_plot("Extended_Data_Figure_X.png", figure_one,
+          base_aspect_ratio = 1, 
+          base_height = 8,
+          base_width = 18.3/2.5)
+```
+
+Platform thickness decreases, width at 50% and 75% does not increase as much as width at 25% suggesting a slight increase in triangular-shaped flakes over parallel-sided flakes as the flakes get larger. 
+
+How about the categorical variables?
+
+```{r}
+
+flakes_categorical <- 
+flakes_clustered %>% 
+  select_if(function(col) is.character(col) | 
+                                   all(col == .$cluster)) %>% 
+  gather(variable, value, -cluster) %>% 
+  mutate(cluster = factor(cluster)) %>% 
+  filter(!is.na(value)) %>% 
+  group_by(cluster, variable, value) %>% 
+  tally() %>% 
+  ungroup() %>% 
+  group_by(cluster, variable) %>%  
+  mutate(prop = n / sum(n) * 100) 
+
+
+# tidy up some of these variables
+library(stringr)
+library(forcats)
+
+flakes_clustered_cats <- 
+flakes_clustered %>% 
+  select_if(function(col) is.character(col) | 
+                                   all(col == .$cluster)) 
+
+# raw material -----------------------------------------------------------------
+# material, ok
+flakes_clustered_cats %>% 
+ group_by(material) %>% 
+ tally(sort = TRUE)
+
+# make table for plotting
+flakes_clustered_cats_raw_material <- 
+flakes_clustered_cats %>%  
+ group_by(`material` , cluster) %>% 
+ tally(sort = TRUE)
+
+# flake type -----------------------------------------------------------------
+
+# type1, ok
+flakes_clustered_cats %>% 
+ group_by(type1) %>% 
+ tally(sort = TRUE)
+
+flakes_clustered_cats_flake_types <- 
+  flakes_clustered_cats %>% 
+  mutate(type1 = if_else(str_detect(type1, "lvf"), "Levallois", type1)) %>% 
+  mutate(type1 = if_else(str_detect(type1, "ret"), "retouch", type1)) %>% 
+  mutate(type1 = if_else(str_detect(type1, "blade|bld"), "blade", type1)) %>% 
+  mutate(type1 = if_else(str_detect(type1, "flk|flake"), "flake", type1)) %>% 
+  mutate(type1 = if_else(str_detect(type1, "dbd"), "débordant", type1)) %>% 
+  mutate(type1 = if_else(str_detect(type1, "kbw"), "Kombewa", type1)) %>% 
+  mutate(type1 = if_else(str_detect(type1, "end"), "end scraper", type1)) %>% 
+  mutate(type1 = fct_lump(type1, 5))
+
+# check again
+flakes_clustered_cats_flake_types %>% 
+ group_by(type1) %>% 
+ tally(sort = TRUE)
+
+# for plotting
+flakes_clustered_cats_flake_types <- 
+flakes_clustered_cats_flake_types %>% 
+ group_by(`type1`, cluster) %>% 
+ tally(sort = TRUE)
+
+# retouch type -----------------------------------------------------------------
+
+# type 2, special case , retouch types
+flakes_clustered_cats %>% 
+ group_by(type2) %>% 
+ tally(sort = TRUE)
+
+flakes_clustered_cats_retouch_type <- 
+flakes_clustered_cats %>% 
+ separate(type2, into = c("type2a", "type2b", "type2c"), sep = ",") %>% 
+  mutate(type2a = if_else(str_detect(type2a, "lvf"), "levallois", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "ret"), "retouch", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "blade|bld"), "blade", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "flk|flake"), "flake", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "tang"), "tanged", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "not"), "notch", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "bur"), "burin", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "point"), "point", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "dent"), "denticulate", type2a)) %>% 
+  mutate(type2a = if_else(str_detect(type2a, "scp"), "scraper", type2a)) %>% 
+  mutate(type2a = str_squish(type2a))  %>% 
+  mutate(type2a = fct_lump(type2a, 7)) %>% 
+  filter(!is.na(type2a)) 
+
+# check it
+flakes_clustered_cats_retouch_type %>% 
+ group_by(type2a) %>% 
+ tally(sort = TRUE)
+
+# for plotting
+flakes_clustered_cats_retouch_type <- 
+flakes_clustered_cats_retouch_type %>% 
+# rename(`Retouch type` = type2a ) %>% 
+# group_by(`Retouch type`, cluster) %>% 
+ tally(sort = TRUE)
+  
+
+# platform type -----------------------------------------------------------------
+
+# Platform, ok
+flakes_clustered_cats %>% 
+ group_by(platform) %>% 
+ tally(sort = TRUE)
+
+flakes_clustered_cats_platform_type  <- 
+  flakes_clustered_cats %>% 
+   mutate(platform = if_else(str_detect(platform, "facet"), "facetted", platform)) %>% 
+   mutate(platform = if_else(str_detect(platform, "cotex|cortex"), "cortex", platform)) %>%
+   mutate(platform = fct_lump(platform, 6)) %>% 
+  filter(!is.na(platform))
+
+
+# for plotting
+flakes_clustered_cats_platform_type <- 
+flakes_clustered_cats_platform_type %>% 
+ group_by(`platform`, cluster) %>% 
+ tally(sort = TRUE)
+  
+
+# platform shape -----------------------------------------------------------------
+
+# platform shape, ok
+flakes_clustered_cats %>% 
+ group_by(platform_shape) %>% 
+ tally(sort = TRUE)
+
+
+flakes_clustered_cats_platform_shape <- 
+flakes_clustered_cats %>% 
+  mutate(platform_shape = if_else(platform_shape == "sb", "quadrangle", platform_shape)) %>%
+  mutate(platform_shape = if_else(platform_shape == "cdg", "chapeau de gendarme", platform_shape)) %>%
+  mutate(platform_shape = if_else(platform_shape == "sx", "rhombus", platform_shape)) %>%
+  mutate(platform_shape = fct_lump(platform_shape, 4))  %>% 
+  filter(!is.na(platform_shape))
+
+# for plotting
+flakes_clustered_cats_platform_shape <- 
+flakes_clustered_cats_platform_shape %>% 
+# rename(`platform` = platform_shape ) %>% 
+ group_by(`platform_shape`, cluster) %>% 
+ tally(sort = TRUE)
+ 
+# cortex texture-----------------------------------------------------------------
+ 
+# cortex texture, ok 
+flakes_clustered_cats %>% 
+ group_by(cortex_texture) %>% 
+ tally(sort = TRUE)
+
+# for plotting
+flakes_clustered_cats_cortex_texture <- 
+flakes_clustered_cats %>% 
+ group_by(`cortex_texture`, cluster) %>% 
+ filter(!is.na(`cortex_texture` )) %>% 
+ tally(sort = TRUE)
+
+# cortex location-----------------------------------------------------------------
+ 
+# cortex location, ok
+flakes_clustered_cats %>% 
+ group_by(cortex_location) %>% 
+ tally(sort = TRUE)
+
+flakes_clustered_cats_cortex_location <- 
+  flakes_clustered_cats %>% 
+   mutate(cortex_location = if_else(str_detect(cortex_location, "prox"), 
+                                    "proximal", 
+                                    cortex_location)) %>%
+   mutate(cortex_location = fct_lump(cortex_location, 6)) %>% 
+  filter(!is.na(cortex_location),
+         cortex_location != "vent")
+
+flakes_clustered_cats_cortex_location <- 
+flakes_clustered_cats_cortex_location %>% 
+ group_by(`cortex_location`, cluster) %>% 
+ filter(!is.na(`cortex_location` )) %>% 
+ tally(sort = TRUE)
+
+# cortex location-----------------------------------------------------------------
+
+# initiation, ok 
+flakes_clustered_cats %>% 
+ group_by(initiation) %>% 
+ tally(sort = TRUE)
+
+flakes_clustered_cats_initiation <- 
+  flakes_clustered_cats %>% 
+   mutate(initiation = fct_lump(initiation, 3))
+
+flakes_clustered_cats_initiation <- 
+flakes_clustered_cats_initiation %>% 
+ group_by(`initiation`, cluster) %>% 
+ filter(!is.na(`initiation` )) %>% 
+ tally(sort = TRUE)
+
+# cortex location-----------------------------------------------------------------
+
+# platform preparation, ok, ignore, no meaningful info in here
+flakes_clustered_cats %>% 
+ group_by(platform_preparation) %>% 
+ tally(sort = TRUE)
+
+flakes_clustered_cats <- 
+  flakes_clustered_cats %>% 
+   mutate(platform_preparation = if_else(str_detect(platform_preparation, "fac"), "facetted", platform_preparation)) %>% 
+   mutate(platform_preparation = fct_lump(platform_preparation, 3))
+
+```
+
+Make a nice panel plot, we have separate dataframes for each variable. 
+
+```{r}
+list_of_dfs <- list(
+  #flakes_clustered_cats_retouch_type,
+                    flakes_clustered_cats_raw_material,
+                    flakes_clustered_cats_platform_type,
+                    flakes_clustered_cats_platform_shape,
+                    flakes_clustered_cats_initiation,
+                    flakes_clustered_cats_flake_types,
+                    flakes_clustered_cats_cortex_texture,
+                    flakes_clustered_cats_cortex_location)
+
+library(purrr)
+
+map_dfr(list_of_dfs, ~nest(.x))
+
+all_the_categorical_variables <- 
+  map_dfr(list_of_dfs, 
+          ~gather(.x, variable, value, -cluster, -n))
+
+# Compute proportions per category
+
+flakes_clustered_cats_long <- 
+all_the_categorical_variables %>% 
+  mutate(value = str_squish(value)) %>% 
+  mutate(cluster = factor(cluster)) %>% 
+  group_by(cluster, variable) %>%  
+  mutate(prop = n / sum(n) * 100)  %>% 
+  arrange(cluster, variable)
+```
+
+
+Here is the plot
+
+```{r}
+# sample sizes for each variable
+flakes_clustered_cats_sample_sizes <- 
+flakes_clustered_cats_long %>% 
+  group_by(variable) %>% 
+  summarise(tot_n = sum(n))
+
+
+categorical_plots <- 
+flakes_clustered_cats_long %>% 
+  ungroup(cluster) %>% 
+  nest(-variable) %>% 
+  left_join(flakes_clustered_cats_sample_sizes) %>% 
+  mutate(variable = glue::glue('{variable} (n = {tot_n})')) %>% 
+  mutate(data = map(data, ~.x %>% mutate(value = as.character(value)))) %>% 
+  mutate(plot = map2(data,
+                     variable, ~.x %>%  
+                            ggplot(aes(cluster, 
+                                          prop, 
+                                          fill = value)) + 
+                       scale_fill_viridis_d() +
+                            geom_col() +
+                            xlab("") +
+                            ylab("%") +
+                       theme_minimal(base_size = 8) +
+                           theme(legend.key.size = unit(0.4,"line"),
+                                 legend.key.width = unit(0.4,"line"),
+                                 legend.key.height = unit(0.4,"line"),
+                                 legend.text = element_text(size=8), 
+                                 legend.title = element_blank(),
+                                 legend.margin=margin(t=-0.5, 
+                                                      r=-0.5, 
+                                                      b=-0.5, 
+                                                      l=-0.1, 
+                                                      unit="cm"),
+                                 legend.box.margin=margin(-0.1,
+                                                          -0.1,
+                                                          -0.1,
+                                                          -0.3,
+                                                          unit="cm"),
+                                 plot.margin = unit(x = c(0.5, 
+                                                          0, 
+                                                          0,
+                                                          0.5), 
+                                                    units = "cm")) +
+                            ggtitle(str_glue('{.y}'))))
+   
+
+# arrange and draw the plots
+categorical_plots_arranged <- 
+cowplot::plot_grid(plotlist = categorical_plots$plot,
+                   align = "hv",
+                   axis = "tblr",
+                   ncol = 2)
+
+save_plot("analysis/report/Extended_Data_Figure_Y.png", categorical_plots_arranged,
+          base_aspect_ratio = 1,
+          base_height = 8,
+          base_width = 18.3/2.5
+)
+
+```
+
+A closer look at the distribution of retouch types by size classes
+
+```{r eval=FALSE}
+flakes_clustered_cats_long %>% 
+  filter(variable == "Retouch type") %>% 
+  ggplot(aes(value, prop)) +
+  geom_col() +
+  facet_wrap( ~ cluster , ncol = 1)
+```
+
+A closer look at the distribution of retouch types by size classes
+
+```{r eval=FALSE}
+flakes_clustered_cats_long %>% 
+  filter(variable == "Retouch type") %>% 
+  ggplot(aes(value, prop)) +
+  geom_col() +
+  facet_wrap( ~ cluster , ncol = 1)
+```
+
+
+
+Try this on the Lev flakes only:
+
+```{r  eval=FALSE}
+flakes_clustered %>% 
+  select_if(function(col) is.numeric(col) | 
+                                   all(col == .$type1))  %>% 
+  filter(str_detect(type1, "LV|leva")) %>% 
+    select(-box, -type1) %>% 
+  gather(variable, value, -cluster) %>% 
+  filter(!is.na(value)) %>% 
+  mutate(cluster = factor(cluster)) %>% 
+  ggplot(aes(cluster,
+             value)) +
+  geom_boxplot() +
+  facet_wrap( ~ variable, scales = "free_y") +
+  theme_minimal()
+```
+
+
+```{r  eval=FALSE}
+flakes_clustered_cats_long_leva <- 
+flakes_clustered_cats %>% 
+  filter(type1 %in% c("levallois", "LVF")) %>% 
+  gather(variable, value, -cluster)  %>% 
+  filter(!is.na(value), 
+         variable != "comment",
+         variable != "heat_damage",
+         variable != "platform_preparation",
+         variable != "type2c") %>% 
+  mutate(value = str_squish(value)) %>% 
+  mutate(cluster = factor(cluster)) %>% 
+  group_by(cluster, variable, value) %>% 
+  tally() %>% 
+  ungroup() %>% 
+  group_by(cluster, variable) %>%  
+  mutate(prop = n / sum(n) * 100)  
+
+categorical_plots_leva <- 
+flakes_clustered_cats_long_leva %>% 
+  ungroup(cluster) %>% 
+  nest(-variable) %>% 
+  mutate(plot = map(data , ~.x %>%  
+                            ggplot(aes(cluster, 
+                                          prop, 
+                                          group=1, 
+                                          fill = value)) + 
+                            geom_col() +
+                            xlab("") +
+                           theme(legend.key.size = unit(0.4,"line"),
+                                 legend.key.width = unit(0.2,"line"),
+                                 legend.key.height = unit(0.4,"line"),
+                                 legend.text = element_text(size=8)))) 
+
+# get legend labels so we know what variable is plotted
+# in each plot, not sure why I can't do this with map
+for(i in 1:nrow(categorical_plots_leva)){
+  categorical_plots_leva$plot[[i]] <- 
+    categorical_plots_leva$plot[[i]] + guides(fill=guide_legend(title=unique(categorical_plots_leva$variable)[i]))
+}
+
+# arrange and draw the plots
+cowplot::plot_grid(plotlist = categorical_plots_leva$plot,
+                   align = "hv",
+                   axis = "tblr")
+
+
+```
+
+

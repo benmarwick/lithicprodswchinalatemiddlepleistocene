@@ -1,0 +1,1061 @@
+---
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+
+Some normal text.
+
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+#install required packages
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(reshape2)
+library(readxl)
+library(fitdistrplus)
+library(plyr)
+library(tidyr)
+library(classInt)
+library(knitr)
+library(cowplot)
+
+# read in the data
+
+
+file_name <- here::here("analysis/data/raw_data/artefacts-after Sam_Dec2018_quina_modified.xls") 
+
+flakes <- as.data.frame(read_excel(file_name, sheet = "flake basics"))
+cores <- as.data.frame(read_excel(file_name, sheet = "core basics"))
+debris <- as.data.frame(read_excel(file_name, sheet = "chunk&debris"))
+retouch <- as.data.frame(read_excel(file_name, sheet = "retouch"))
+core_flake_scars_1 <- as.data.frame(read_excel(file_name, sheet = "core flake scars"))
+edge_angle_1 <- as.data.frame(read_excel(file_name, sheet = "edge angle"))
+retouched_pebble_chunk <- as.data.frame(read_excel(file_name, sheet = "Pebble&chunk"))
+
+scar_dir <- as.data.frame(read_excel(file_name, sheet = 'scar direction'))
+
+core_flake_scars <- core_flake_scars_1[core_flake_scars_1$number %in% cores$number, ]
+
+edge_angle <- edge_angle_1[edge_angle_1$number %in% retouch$number, ]
+
+```
+
+```{r message=FALSE, warning=FALSE, echo = FALSE}
+# basic details of the dataset
+artefact_ids <- list(flake_ids = flakes$number,
+                     core_ids = cores$number,
+                     debris_ids = debris$number)
+
+retouch_ids <- retouch$number
+
+# how many unique artefacts?
+
+totals_of_each_type <- lapply(artefact_ids, function(i) length(i))
+
+count_unique_artefacts <- sum(unlist(totals_of_each_type))
+
+# debris pieces that are retouch pieces
+
+debris_with_retouch <- intersect(retouch_ids, artefact_ids$debris_ids)
+
+proportion_debris_retouched <- length(debris_with_retouch) / count_unique_artefacts 
+
+# proportion of each type
+
+type_table <- data.frame(type = names(as.data.frame(totals_of_each_type)),
+                         count = as.numeric(as.data.frame(totals_of_each_type)),
+                         proportion = round(as.numeric(prop.table(as.data.frame(totals_of_each_type))),3))
+
+# add total row at the bottom
+
+type_table$type <- as.character(type_table$type)
+
+type_table <- rbind(type_table, c("total", count_unique_artefacts, round(sum(type_table$proportion),2)))
+
+# print pretty table
+
+print("table of lithic types")
+
+kable(type_table) 
+
+
+### raw materials
+
+raw_material_table <- data.frame("category" = character(),
+                                 'chert' = numeric(),
+                                 'limestone' = numeric(),
+                                 'basalt' = numeric(),
+                                 'quartz' = numeric(),
+                                 'sandstone' = numeric(),
+                                 stringsAsFactors = FALSE)
+
+row <- 1
+
+raw_material_table[row, names(unlist(table(na.omit(flakes$material))))] <- 
+  unlist(table(na.omit(flakes$material)))
+
+raw_material_table[row, 1] <- "flake"
+row <- row + 1
+
+
+raw_material_table[row, names(unlist(table(na.omit(cores$material))))] <- 
+  unlist(table(na.omit(cores$material)))
+raw_material_table[row, 1] <- "core"
+row <- row + 1
+
+raw_material_table[row, names(unlist(table(na.omit(debris$material))))] <- 
+  unlist(table(na.omit(debris$material)))
+raw_material_table[row, 1] <- "debris"
+row <- row + 1
+
+
+raw_material_table[row, names(unlist(table(flakes$material[flakes$number %in% retouch$number])))] <- 
+  unlist(table(flakes$material[flakes$number %in% retouch$number]))
+raw_material_table[row, 1] <- "retouched pieces"
+row <- row + 1
+
+
+
+###tools raw materials
+
+test <- as.matrix(t(table(flakes[flakes$number %in% retouch$number, 
+                     c("material", "type2")])))
+
+raw_material_table[row, colnames(test)] <- test["backed knife",]
+raw_material_table[row, 1] <- "backed knife"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- colSums( test[c("bec", "bec,scp"),])
+raw_material_table[row, 1] <- "bec"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("borer","borer,dent", "borer,dent,scp","borer,end,scp","borer,notch",
+                  "borer,notch,scp","borer,scp", "borer,scp,end","borer,strt" ), ])
+raw_material_table[row, 1] <- "borer"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("BUR", "BUR? CORE?","BURIN" ), ])
+raw_material_table[row, 1] <- "BUR"
+row <- row + 1
+
+raw_material_table[row, colnames(test)] <- test["chopper", ]
+raw_material_table[row, 1] <- "chopper"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- test["cleaver", ]
+raw_material_table[row, 1] <- "cleaver"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("dent", "dent,borer,scp","dent,end","dent,notch",  "dent,scp",
+                  "dent/NOT", "dent/POINT"  ), ])
+raw_material_table[row, 1] <- "Denticular"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("end", "end,borer" , "end,borer,scp" ,"end,scp" ,"endscp" ), ])
+raw_material_table[row, 1] <- "Endscraper"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("leva point","point" ,"POINT" , "point break" ,
+                  "point,broken", "point?"  ), ])
+raw_material_table[row, 1] <- "Point"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("moon","scp", "sidescp" , "sidescp-cvx"  ), ])
+raw_material_table[row, 1] <- "scraper"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("NATBACK", "nature backed"), ])
+raw_material_table[row, 1] <- "nature backed"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c( "notcch", "notch" , "notch,borer"  , "notch,end","notch,scp" ,       
+                   "notch/DENT"), ])
+raw_material_table[row, 1] <- "notch"
+row <- row + 1
+
+
+raw_material_table[row, colnames(test)] <- 
+  colSums( test[c("TANG", "TANGED",  "TANGED POINT", "TANGED POINT /NOT", 
+                  "tanged point?", "TANGED POINT?"  ), ])
+raw_material_table[row, 1] <- "tanged point"
+row <- row + 1
+
+
+raw_material_table[is.na(raw_material_table)] <- 0 ##convert na to 0
+
+raw_material_table$total <- rowSums(raw_material_table[,-1])
+
+write.csv(raw_material_table, "raw_material_table.csv")
+
+
+x <- raw_material_table
+
+prop_raw_material <- cbind(category = x[, 1], round(x[, -1]/rowSums(x[, 2:(ncol(x)-1)])*100, digits = 1))
+
+write.csv(prop_raw_material, "raw_material_table (percentage).csv")
+
+print("tables for raw materials of the assemblage")
+
+kable(raw_material_table)
+
+print("proportion tables for raw materials of the assemblage")
+
+kable(prop_raw_material)
+
+### cores
+core_summary <- cores[0, c(6:17)]
+
+core_summary["mean",] <- c("mean" = apply(na.omit(cores[,c(6:17)]), 2, mean))
+
+core_summary["sd",] <- c("sd" = apply(na.omit(cores[,c(6:17)]), 2, sd))
+
+core_summary["CV",] <- core_summary["sd",]/core_summary["mean",]
+
+core_summary <- rbind(core_summary, 
+                      sapply(na.omit(cores[,6:17]), function(x) quantile(x, c(0.25, 0.5, 0.75))))
+
+print("summary of core attributes")
+
+kable(round(core_summary, digits = 1))
+
+
+
+
+```
+
+We will try univariate clustering for flake mass:
+
+```{r message=FALSE, warning=FALSE, echo = FALSE}
+require(Ckmeans.1d.dp)
+result <- Ckmeans.1d.dp(flakes$mass[!is.na(flakes$mass)])
+
+print("flake grouping result according to mass")
+plot(result)
+
+n_clusters <- length(result$size)
+n_clusters_30 <- length(result$size[result$size > 30])
+
+# assign cluster ID to table
+flakes_clustered <- 
+flakes %>% 
+  filter(!is.na(mass)) %>% 
+  mutate(cluster = result$cluster) %>% 
+  right_join(flakes) %>% 
+  filter(cluster %in% 1:n_clusters_30)
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# clean data to help with analysis
+flakes$retouched <- ifelse(grepl("ret", flakes$type1), "retouched", "unretouched")
+flakes <- flakes[!flakes$material %in% c('sandstone', 'quartz'),]
+
+# how many levallois?
+unique(flakes$type1)
+
+leva <- flakes %>% 
+  filter(grepl("LVT|LVF|LVFB", type1)) %>%
+  filter(!grepl("LVF_", type1))
+
+non_leva <- flakes %>% 
+  filter(!grepl("LVT|LVF|LVFB", type1))
+
+flakes_L <-  
+  mutate(flakes, L = ifelse(grepl("LVT|LVF|LVFB", type1), "L", "N"))
+
+# are the levallois pieces bigger?
+
+print("compare the mass of Leva and non-leva flakes")
+ggplot(flakes_L, aes(x = L, 
+                     y = mass)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.2) +
+  scale_y_log10() + theme_bw() +theme(text = element_text(size = 20))
+
+# is it significant?
+
+print("t-test to see if it is statistically significant?")
+
+t.test(data = flakes_L, mass ~ L)
+# no
+
+
+# explore variation in thickness in these groups
+thick_plot <- ggplot(flakes_L) +
+  xlab("Thickness (mm)") + ylab("Density") +
+  geom_density(aes(`Thickness_25%max`), colour = "red", alpha = 0.3) +
+  geom_density(aes(`Thickness_50%max`), colour = "green", alpha = 0.3) +
+  geom_density(aes(`Thickness_75%max`), colour = "blue", alpha = 0.3) +
+  xlab("Thickness (mm)") + theme_bw() +
+   theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+print("variation of thickness for all flakes (red = 25%max_dim,green = 50%max,blue=75%max")
+
+thick_plot
+
+
+# explore variation in width in these groups
+width_plot <- ggplot(flakes_L) +
+  xlab("Width (mm)") + ylab("Density") +
+  geom_density(aes(`Width_25%max`), colour = "red", alpha = 0.3) +
+  geom_density(aes(`Width_50%max`), colour = "green", alpha = 0.3) +
+  geom_density(aes(`Width_75%max`), colour = "blue", alpha = 0.3) +
+  xlab("Width (mm)") + theme_bw() +
+   theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+print("variation of width for all flakes (red = 25%max_dim,green = 50%max,blue=75%max")
+
+width_plot
+
+# by size class that we identified earlier
+
+print("compare thickness of leva and non-leva (red = 25%max_dim, 
+      green = 50%max, blue=75%max")
+
+thick_plot +
+  facet_wrap(~ L, ncol = 1)
+
+# need a test of uniformity (peak width)
+
+# check the CVs
+CV <- function(the_vector){
+  mean_ <- mean(the_vector, na.rm = TRUE)
+  sd_ <- sd(the_vector, na.rm = TRUE)
+  cv <- (sd_/mean_) * 100
+  round(cv, 3)
+}
+
+
+cv_res <- flakes_L %>% 
+  group_by(L) %>% 
+  dplyr::summarise(cv_25_thick = CV(`Thickness_25%max`),
+                   cv_50_thick = CV(`Thickness_50%max`),
+                   cv_75_thick = CV(`Thickness_75%max`),
+                   cv_25_width = CV(`Width_25%max`), 
+                   cv_50_width = CV(`Width_50%max`),
+                   cv_75_width = CV(`Width_75%max`), 
+                   n = n())
+
+print("summary of cv for thickness and width for leva and non-leva flakes")
+
+cv_res
+
+
+```
+
+
+The following are results for cores
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+
+# function to compute frequencies and make a plot
+f <-  function(the_data, the_column) {
+  data.frame(table(the_data[the_column])) %>% 
+    ggplot(aes(x = reorder(Var1, Freq), y = Freq)) +
+    geom_bar(stat = "identity") +
+    ylab("count") +
+    xlab(the_column) + 
+    theme_bw() +
+    theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1, vjust = 1),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25)
+    )
+}
+
+# some plots of frequencies for cores
+
+## geometry
+print("summary for core geometry")
+
+f(cores, "core_geometry")
+
+core_geom_table <-  table(na.omit(cores$core_geometry))
+
+round(prop.table(core_geom_table), digits = 4)*100
+
+
+## platform number
+
+print("summary for core platform")
+
+f(cores, "platform")
+
+core_plat_table <-  table(na.omit(cores$platform))
+
+round(prop.table(core_plat_table), digits = 4)*100
+
+### cortex proportion of cores
+
+print("cortex proportion of cores")
+
+ggplot(cores, aes(cortex_percentage)) +
+  geom_histogram(binwidth = 10) + theme_bw() +
+  xlab("Cortex proportion (%)") + 
+  ylab("Number of cores") +
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+core_cortex_table <-  table(na.omit(cores$cortex_percentage))
+
+round(prop.table(core_cortex_table), digits = 4)*100
+
+
+
+
+## platform type
+
+print("summary for core platform preparation")
+
+f(cores, "platform_preparation")
+
+core_plat_type <-  table(na.omit(cores$platform_preparation))
+
+round(prop.table(core_plat_type), digits = 4)*100
+
+
+## platform rotation
+print("summary for core rotations")
+
+f(cores, "rotations")
+
+ggplot(cores, aes(rotations)) +
+  geom_bar() + theme_bw() +
+  xlab("Number of rotation") + 
+  ylab("Number of cores") +
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+core_plat_rotat <-  table(na.omit(cores$rotations))
+
+round(prop.table(core_plat_rotat), digits = 4)*100
+
+
+## core reduction type
+print("summary for core reduction type")
+
+f(cores, "type")
+
+core_type_table <- table(na.omit(cores$type))
+
+round(prop.table(core_type_table),digits = 4)*100
+
+
+## core scar number
+
+print("summary of core scar number")
+
+ggplot(cores, aes(scar_number)) +
+  geom_bar() + theme_bw() + 
+  xlab("Scar number on cores") + 
+  ylab("Count") +
+    theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+
+core_scar_table <- table(na.omit(cores$scar_number))
+
+round(prop.table(core_scar_table), digits = 4)*100
+
+## core flake scar length
+
+print("summary for core flake scar length")
+
+core_flake_scars_melt <- melt(core_flake_scars_1)
+
+colnames(core_flake_scars_melt)[3] <- "scar_length"
+
+ggplot(core_flake_scars_melt[core_flake_scars_melt$scar_length < 500, ], 
+       aes(scar_length)) +
+  geom_density() + theme_bw() +
+  xlab("Length of scar on cores") + 
+  ylab("Density") +
+    theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+print("median of scar length")
+
+median(na.omit(core_flake_scars_melt[core_flake_scars_melt$scar_length < 500, ]$scar_length))
+
+```
+
+
+The following results are for flakes
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+# explore flakes
+
+flake_summary <- flakes[0, c(7:17, 19,20,22,23)]
+
+flake_summary["mean",] <- c("mean" = apply(na.omit(flakes[,c(7:17, 19,20,22,23)]), 2, mean))
+
+flake_summary["sd",] <- c("sd" = apply(na.omit(flakes[,c(7:17, 19,20,22,23)]), 2, sd))
+
+flake_summary["cv", ] <- flake_summary["sd",] /flake_summary["mean",] 
+
+flake_summary <- rbind(flake_summary, 
+                      sapply(na.omit(flakes[,c(7:17, 19,20,22,23)]), 
+                             function(x) quantile(x, c(0.25, 0.5, 0.75))))
+
+print("table for flake attributes")
+
+kable(round(flake_summary, digits = 1))
+
+## how many flake type1
+
+print("summary for flake type1")
+f(flakes, "type1")
+table(na.omit(flakes$type1))
+round(prop.table(table(na.omit(flakes$type1))), digits = 3)*100
+
+
+## flake type2 
+print("summary for flake type2")
+f(flakes, "type2")
+table(na.omit(flakes$type2))
+round(prop.table(table(na.omit(flakes$type2))),digits = 3)*100
+
+## how many retouched and unretouched flakes
+flakes$retouched <- ifelse(grepl("ret", flakes$type1), "retouched", "unretouched")
+
+flakes <- flakes[!flakes$material %in% c('qutz', 'quartz', 'basalt'),]
+
+print("summary for flake retouch")
+
+f(flakes, "retouched")
+table(na.omit(flakes$retouched))
+round(prop.table(table(na.omit(flakes$retouched))), digits = 3)*100
+
+
+## raw material of flakes
+print("summary for flake material")
+f(flakes, "material")
+
+
+
+## platform shape of flakes
+print("summary for flake platform shape")
+f(flakes, "platform_shape")
+
+table(na.omit(flakes$platform_shape))
+round(prop.table(table(na.omit(flakes$platform_shape))), digits = 4)*100
+
+### number of flakes with distinctive platform
+## platform of flakes
+print("summary for flake platform")
+f(flakes, "platform")
+
+paste( "number of flakes with distinctive platform =", length(na.omit(flakes$platform)) )
+
+table(na.omit(flakes$platform))
+round(prop.table(table(na.omit(flakes$platform))), digits = 3)*100
+
+# mass for all flakes
+print("mass of flakes")
+ggplot(flakes, aes(mass)) +
+  geom_histogram(binwidth = 10) + theme_bw() +
+  xlab("Mass (g)") + ylab("Number of flakes") +
+    theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+## max dimension of all flakes
+
+print("max dimension of all flakes")
+ggplot(flakes, aes(max_dimension)) +
+  geom_density() + theme_bw() +
+  xlab("Maximum dimension (mm)") + ylab("Density") +
+    theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+## length vs width at 50% max dime
+print("length vs width at 50% max dim")
+
+ggplot(flakes, aes(length, `Width_50%max`, colour = material)) +
+  geom_point() +
+  geom_smooth(method = "lm") + theme_bw() +
+    theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+
+## platform shape vs thickness at 50% max dime
+print("platform shape vs thickness at 50% max dim")
+
+ggplot(flakes[!is.na(flakes$platform_shape),], 
+       aes(`Thickness_50%max`, x = platform_shape)) +
+  geom_boxplot() + scale_y_log10()+ theme_bw() +
+  xlab("Platform shape") + ylab("Thickness at 50% max. dim. (mm)") +
+    theme(axis.text.x = element_text(size = 20, angle = 45, vjust = 1, hjust = 1),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+## platform shape vs max dim
+print("platform shape vs max dim")
+
+ggplot(flakes[!is.na(flakes$platform_shape),],
+       aes(`max_dimension`, x = platform_shape)) +
+  geom_boxplot() + scale_y_log10()+ theme_bw() +
+   xlab("Platform shape") + ylab("Maximum dimension (mm)") +
+    theme(axis.text.x = element_text(size = 20, angle = 45, vjust = 1, hjust = 1),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+# mass for all flakes, retouched or not
+
+print("mass for retouched and non-retouched flakes")
+
+ggplot(flakes, aes(mass, colour = retouched)) +
+  geom_density()+ theme_bw() +
+  
+
+# mass for all flakes, by raw material
+
+print("mass for flakes of different raw materials")
+ggplot(flakes, aes(mass, colour = material)) + scale_x_log10() +
+  geom_density()+ theme_bw() +theme(text = element_text(size = 20))
+
+
+## max dimension for all flakes
+
+print("max dim for all flakes")
+ggplot(flakes, aes(max_dimension)) +
+  geom_histogram(binwidth = 5) + theme_bw() +
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+
+## max dim for all flakes, retouched or not 
+
+print("max dim for all flakes, retouched or not")
+ggplot(flakes, aes(`max_dimension`, colour = retouched)) +
+  geom_density()+ theme_bw() +
+  xlab("Maximum dimension (mm)") + ylab("Density") +
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25),
+        legend.text = element_text(size = 20))+
+   theme(legend.position = c(0.8, 0.8),
+         legend.title = element_blank())
+  
+
+## max dim for all flakes, by raw material
+print("max dim for all flakes, by raw material")
+ggplot(flakes, aes(`max_dimension`, colour = material)) +
+  geom_density()+ theme_bw() +theme(text = element_text(size = 20))
+
+## scar counts for all flakes, by raw material
+print("scar counts for all flakes, by raw material")
+ggplot(flakes, aes(`scar_number`)) +
+  geom_bar()+ theme_bw() +
+  xlab("Number of scars") + ylab("Count of flakes")+
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+flakes$scar_group <- ifelse(flakes$`scar_number` > 5, "more_than_5", "less_than_5")
+
+ggplot(flakes, aes(mass, x = scar_group)) +
+  geom_boxplot() +
+  scale_y_log10()+ theme_bw() +theme(text = element_text(size = 20))
+
+ggplot(flakes[!is.na(flakes$scar_group), ], aes(mass, colour = scar_group)) +
+  geom_density()+ theme_bw() + scale_x_log10() +
+  xlab("Mass (g)") + ylab("Count of flakes")+
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+# facetted plaforms
+
+print("facetted platforms")
+
+flakes$facetted_platform <- ifelse(grepl("fac", flakes$platform), "fac", "no")
+
+table(na.omit(flakes$facetted_platform))
+round(prop.table(table(na.omit(flakes$facetted_platform))), digits = 4)*100
+
+ggplot(flakes, aes(`max_dimension`, colour = facetted_platform)) +
+  geom_density()+ theme_bw() +
+  xlab("Maximum dimension (mm)") + ylab("Density") +
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25),
+        legend.text = element_text(size = 20))+
+   theme(legend.position = c(0.8, 0.8),
+         legend.title = element_blank())
+  
+
+
+### cortex proportion of flakes
+
+print("cortex proportion of flakes")
+
+ggplot(flakes, aes(cortex_percentage)) +
+  geom_histogram(binwidth = 10) + theme_bw() +
+    xlab("Cortex proportion (%)") + ylab("Count of flakes") +
+  theme(axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 20),
+          axis.title.x = element_text(size = 25),
+          axis.title.y = element_text(size = 25))
+
+### compare cortex for ret and non-ret
+
+print("compare cortex for ret and non-retouched flakes")
+
+ggplot(flakes, aes(x = cortex_percentage, fill = retouched)) + geom_histogram(binwidth = 10, position='dodge') + theme_bw() +theme(text = element_text(size = 20))
+
+
+
+## how many points
+
+print("how many points?")
+
+flakes$point <- ifelse(grepl("point|POINT", flakes$type2), "point", 
+                       ifelse(grepl("back", flakes$type2), "backed", "other"))
+
+table(na.omit(flakes$point))
+round(prop.table(table(na.omit(flakes$point))), digits = 4)*100
+
+
+
+```
+
+Group the flakes according to their 
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# Look to see if groups exist
+
+# by flake size
+plain_flakes <-  flakes[grepl("fl", flakes$type1), ]
+d <- density(na.omit(plain_flakes$mass)) # returns the density data
+# plot
+plot(d)
+ggplot(plain_flakes, aes(mass)) +
+  geom_density()+ theme_bw() +theme(text = element_text(size = 20))
+
+# test is we can discover natural breaks that divide up the flakes?
+
+# how many groups should we look for?
+n <- 5
+natural_breaks <- classIntervals(plain_flakes$mass, n = n, 
+                                 style = "jenks", dataPrecision = 2)
+# plot the breaks
+ggplot(plain_flakes, aes(mass)) +
+  geom_density(colour = "blue") +
+  geom_vline(xintercept = natural_breaks$brks, colour = "red")+ theme_bw() +theme(text = element_text(size = 20))
+
+# create a df
+plain_flakes$mass_group <- cut(plain_flakes$mass, 
+                               breaks = c(0, natural_breaks$brks[-1]),
+                               labels = 1:(length(natural_breaks$brks)-1))
+# remove flakes not in a group
+plain_flakes <- plain_flakes[!is.na(plain_flakes$mass_group), ]
+
+# plot the groups
+ggplot(plain_flakes, aes(mass_group, mass)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.1) +
+  theme_bw() +theme(text = element_text(size = 20))
+
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# explore variation in thickness in these groups
+thick_plot <- ggplot(plain_flakes) +
+  xlab("Thickness (mm)") + ylab("Density") +
+  geom_density(aes(`Thickness_25%max`), colour = "red", alpha = 0.3) +
+  geom_density(aes(`Thickness_50%max`), colour = "green", alpha = 0.3) +
+  geom_density(aes(`Thickness_75%max`), colour = "blue", alpha = 0.3) +
+  xlab("Thickness (mm)") + theme_bw() +theme(text = element_text(size = 20))
+
+thick_plot 
+
+# by size class that we identified earlier
+thick_plot +
+  facet_wrap(~ mass_group, ncol = 1)
+
+# Lycett and Eren found out the thickness is more evenly distributed and less variable across preferential Levallois flakes. So , let's get the CV values for thickness for each group
+CV <- function(the_vector){
+  mean_ <- mean(the_vector, na.rm = TRUE)
+  sd_ <- sd(the_vector, na.rm = TRUE)
+  cv <- (sd_/mean_)*100
+  round(cv, 3)
+}
+
+
+plain_flakes %>% 
+  group_by(mass_group) %>% 
+  dplyr::summarise(cv_25_thick = CV(`Thickness_25%max`),
+                   cv_50_thick = CV(`Thickness_50%max`),
+                   cv_75_thick = CV(`Thickness_75%max`),
+                   cv_25_width = CV(`Width_25%max`), 
+                   cv_50_width = CV(`Width_50%max`),
+                   cv_75_width = CV(`Width_75%max`), 
+                   n = n()) 
+
+
+```
+
+Results for edge angles
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# calculate the edge angle
+
+edge_angle_2 <- edge_angle
+
+edge_angle_2[, 2:(ncol(edge_angle_2)-1)] <- atan(edge_angle[, 2:(ncol(edge_angle_2)-1)]/2/3)/pi*180*2
+
+df_angle <- melt(edge_angle_2[, 1:(ncol(edge_angle_2)-1)])
+
+df_angle$variable <- substr(df_angle$variable, 1, 9) 
+
+colnames(df_angle)[2:3] <- c("section", "angle")
+
+# plot the angles 
+
+print("edge angels")
+
+ggplot(df_angle, aes(x = angle, col = section)) + geom_density() + theme_bw() +theme(text = element_text(size = 20))
+
+## find quina and compare their angles.
+
+quina_id <- flakes$number[which(flakes$type3 == "quina")]
+
+df_angle$quina <- ifelse(df_angle$number %in% quina_id, "quina", "no")
+
+ggplot(df_angle, aes(x = angle, col = quina)) + geom_density() + theme_bw() +theme(text = element_text(size = 20))
+
+ggplot(df_angle, aes(x = angle, col = section)) + geom_density() + theme_bw() +theme(text = element_text(size = 20)) + facet_wrap(~quina)
+
+
+## compare thickness of quina and other
+
+df_thick <- melt(flakes[, c("number", "Thickness_25%max", "Thickness_50%max", "Thickness_75%max")])
+
+df_thick$quina <- ifelse(df_thick$number %in% quina_id, "quina", "no")
+
+ggplot(df_thick, aes(x = value, col = quina)) + geom_density() + theme_bw() +theme(text = element_text(size = 20)) + facet_wrap(~variable)
+
+# plot the thickness of 50% max
+
+print("thickness of 50% max dim")
+ggplot(df_thick[df_thick$variable =="Thickness_50%max", ], aes(quina, value)) +
+  geom_boxplot() + theme_bw() +theme(text = element_text(size = 20))
+
+
+
+## count the number of shapes of edges.
+
+edge_shapes <- unlist(strsplit(retouch$`edge shape`, ","))
+
+data.frame(table(edge_shapes)) %>% 
+ggplot(aes(x = reorder(edge_shapes, Freq), y = Freq)) +
+    geom_bar(stat = "identity") +
+    ylab("n") +
+    xlab("Edge type") + 
+    theme_bw() +theme(text = element_text(size = 20)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+data.frame(table(edge_shapes))
+
+
+## number of layers
+
+f(retouch, 'number of layers')
+
+## number of edges
+
+f(retouch, 'number of edge')
+
+## number of layers for each number of eadge
+
+df_layer_edge <- melt(retouch[, 1:3])
+
+
+ data.frame(table(retouch[,2:3])) %>% 
+    ggplot(aes(x = reorder(number.of.layers, Freq), y = Freq)) +
+    geom_bar(stat = "identity") +
+    ylab("n") +
+    xlab("number of layers") + 
+    theme_bw() +theme(text = element_text(size = 20)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    facet_wrap(~number.of.edge)
+ 
+
+```
+
+scar number and direction
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+
+# scar number and direction
+
+## count how many scars from each direction
+
+print("count how many scars from each direction")
+
+table(unlist(scar_dir[,2:8]))
+
+## How many % flakes that have dorsal scars from at least 3 complete different directions
+
+print("How many % flakes that have dorsal scars from at least 3 complete different directions")
+
+table(unlist(scar_dir[,2:8]))
+
+
+## calculate GIUR
+
+df_giur <- retouch[, c(1,8,10,12,14,16,18,20,22)]
+
+df_giur[, -1] <- df_giur[, -1] / retouch[, c(9,11,13,15,17,19,21,23)]
+
+df_giur_clustered <- left_join(df_giur, flakes_clustered[, c("number", "cluster")])
+
+df_giur_clustered_melt <- melt(df_giur_clustered[,-1], id.vars = "cluster")
+
+
+## compare GIUR with edge angle
+
+df_giur_edge <- melt(df_giur)
+
+df_giur_edge$variable <- substr(df_giur_edge$variable, 1, 9) 
+
+colnames(df_giur_edge)[2:3] <- c("section", "giur")
+
+df_giur_edge <- left_join(df_giur_edge[df_giur_edge$giur <= 1, ], df_angle)
+
+print("compare the GIUR and edge angle for different sections")
+
+ggplot(na.omit(df_giur_edge), aes(angle, giur, colour = section)) +
+  geom_point() +
+  geom_smooth(method = "lm") + theme_bw() +theme(text = element_text(size = 20))
+
+print("compare the GIUR and edge angle for all sections")
+
+ggplot(na.omit(df_giur_edge), aes(angle, giur)) +
+  geom_point() +
+  geom_smooth(method = "lm") + theme_bw() +theme(text = element_text(size = 20))
+
+
+## compare GIUR for different mass categories
+
+print("compare GIUR for different mass groups")
+
+ggplot(na.omit(df_giur_clustered_melt[df_giur_clustered_melt$value <=1,]), aes(value)) +
+  geom_histogram() + theme_bw() +theme(text = element_text(size = 20)) + facet_wrap(~cluster)
+
+## calculate the median GIUR for each group
+
+print("the median GIUR for each group")
+
+tapply(df_giur_clustered_melt$value, df_giur_clustered_melt$cluster, median, na.rm=TRUE)
+
+
+## compare GIUR for Quina and non-quina
+
+print("Compare GIUR for Quina and non-quina")
+
+df_giur_clustered$quina <- ifelse(df_giur_clustered$number %in% quina_id, "quina", "no")
+
+df_giur_clustered_melt_2 <- melt(df_giur_clustered[,-1], id.vars = "quina")
+
+ggplot(na.omit(df_giur_clustered_melt_2[df_giur_clustered_melt_2$value <=1,]), aes(value)) +
+  geom_histogram() + theme_bw() +theme(text = element_text(size = 20)) + facet_wrap(~quina)
+
+
+
+print("Histogram of GIUR for Quina")
+
+ggplot(na.omit(df_giur_clustered_melt_2[df_giur_clustered_melt_2$value <=1 &
+                                          df_giur_clustered_melt_2$quina == "quina",]), aes(value)) +
+  geom_histogram()  + theme_bw() +theme(text = element_text(size = 20))
+
+
+print("Histogram of GIUR for non Quina")
+
+ggplot(na.omit(df_giur_clustered_melt_2[df_giur_clustered_melt_2$value <=1 &
+                                          df_giur_clustered_melt_2$quina == "no",]), aes(value)) +
+  geom_histogram() +  theme_bw() +theme(text = element_text(size = 20))
+
+print("the median GIUR for quina and non-quina")
+
+tapply(df_giur_clustered_melt_2$value, df_giur_clustered_melt_2$quina, median, na.rm=TRUE)
+
+
+# Invasiveness index
+print("results for invasiveness index")
+
+df_invasive <- retouch[, c(1, 24:39)]
+
+df_invasive_clustered <- left_join(df_invasive, flakes_clustered[, c("number", "cluster")])
+
+df_invasive_clustered_melt <- melt(df_invasive_clustered[,-1], id.vars = "cluster")
+
+invasive_table <- as.data.frame(table(df_invasive_clustered_melt[, c("cluster", "value")]))
+
+ggplot(invasive_table[invasive_table$value %in% c(0.5, 1.0), ], aes(fill=value, y= Freq, x=cluster)) + 
+    geom_bar( stat="identity", position="fill", width = 0.6) + theme_bw() +theme(text = element_text(size = 20)) +
+    theme(axis.text=element_text(size=14), axis.title=element_text(size=16,face="bold")) +
+    theme(legend.text=element_text(size=14))
+
+
+  
+
+```
+
