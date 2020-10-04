@@ -241,9 +241,6 @@ print("summary of core attributes")
 
 kable(round(core_summary, digits = 1))
 
-
-
-
 ```
 
 We will try univariate clustering for flake mass:

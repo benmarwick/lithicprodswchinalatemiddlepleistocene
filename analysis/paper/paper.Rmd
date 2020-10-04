@@ -1,5 +1,5 @@
 ---
-title: "Title Goes Here"
+title: "Supplementary Information for Diverse lithic production strategies in southwest China during Late Middle Pleistocene"
 author:
   - Myfirstname Mylastname:
       email: fl@oneplace.edu
@@ -55,40 +55,337 @@ knitr::opts_chunk$set(
 
 <!-- The actual document text starts here: -->
 
-# Introduction
+Read in the data.
 
-Here is a citation [@Marwick2017]
-
-# Background
-
-# Methods
-
-# Results
-
-<!-- Here's some example analysis code: -->
-
-```{r get-data, eval = FALSE}
+```{r get-data}
 # Note the path that we need to use to access our data files when rendering this document
-my_data <- read.csv(here::here('analysis/data/raw_data/my_csv_file.csv'))
+library(readxl)
+
+file_name <- here::here("analysis/data/raw_data/artefacts-after Sam_Dec2018_quina_modified.xls") 
+
+flakes <- as.data.frame(read_excel(file_name, sheet = "flake basics"))
+cores <- as.data.frame(read_excel(file_name, sheet = "core basics"))
+debris <- as.data.frame(read_excel(file_name, sheet = "chunk&debris"))
+retouch <- as.data.frame(read_excel(file_name, sheet = "retouch"))
+core_flake_scars_1 <- as.data.frame(read_excel(file_name, sheet = "core flake scars"))
+edge_angle_1 <- as.data.frame(read_excel(file_name, sheet = "edge angle"))
+retouched_pebble_chunk <- as.data.frame(read_excel(file_name, sheet = "Pebble&chunk"))
+
+scar_dir <- as.data.frame(read_excel(file_name, sheet = 'scar direction'))
+
+core_flake_scars <- core_flake_scars_1[core_flake_scars_1$number %in% cores$number, ]
+
+edge_angle <- edge_angle_1[edge_angle_1$number %in% retouch$number, ]
 ```
 
-```{r demo-plot, fig.cap="A plot of random numbers"}
-plot(rnorm(10))
+Prepare and clean the data
+
+```{r}
+# prepare the data --------------------------------------------------
+
+require(Ckmeans.1d.dp)
+result <- Ckmeans.1d.dp(flakes$mass[!is.na(flakes$mass)])
+
+n_clusters <- length(result$size)
+n_clusters_30 <- length(result$size[result$size > 30])
+
+# assign cluster ID to table
+flakes_clustered <-
+  flakes %>%
+  filter(!is.na(mass)) %>%
+  mutate(cluster = result$cluster) %>%
+  right_join(flakes) %>%
+  filter(cluster %in% 1:n_clusters_30)
+
+# clean data to help with analysis
+flakes$retouched <- ifelse(grepl("ret", flakes$type1), "retouched", "unretouched")
+flakes <- flakes[!flakes$material %in% c('sandstone', 'quartz'),]
 ```
 
-Figure \@ref(fig:demo-plot) shows how we can have a caption and cross-reference for a plot
 
-```{r demo-inline-code}
-x <- round(pi, 2)
+Results of descriptive statistics for Levallois and non-Levallois flakes. ‘PLF’ stands for preferential Levallois flake; ‘CF’ stands for complete flake.
+
+```{r}
+point_alpha <- 0.1
 ```
 
-Here is an example of inline code `r x` in the middle of a sentence. 
+## Comparison of Levallois flakes vs non-Levallois flakes
 
-# Discussion
+Separate Levallois and Non-Levallois flakes for comparison
 
-# Conclusion
+```{r}
+library(tidyverse)
+library(ggbeeswarm)
+library(papaja)
 
-# Acknowledgements
+# clean data to help with analysis
+flakes$retouched <- ifelse(grepl("ret", flakes$type1), "retouched", "unretouched")
+flakes <- flakes[!flakes$material %in% c('sandstone', 'quartz'),]
+
+# how many levallois?
+# unique(flakes$type1)
+
+leva <- flakes %>% 
+  filter(grepl("LVT|LVF|LVFB", type1)) %>%
+  filter(!grepl("LVF_", type1))
+
+non_leva <- flakes %>% 
+  filter(!grepl("LVT|LVF|LVFB", type1))
+
+flakes_L <-  
+  mutate(flakes, L = ifelse(grepl("LVT|LVF|LVFB", type1), "Levallois", "Non-Levallois"))
+```
+
+Are the levallois pieces bigger by mass?
+
+```{r}
+# is it significant?
+t_test_str_l_mass <- 
+apa_print(t.test(data = flakes_L, mass ~ L))$statistic %>% 
+  str_remove_all("\\$|\\{|\\}|\\\\|mathit")
+
+# plot
+compare_lev_non_lev_mass_plot <- 
+ggplot(flakes_L, aes(x = L, 
+                     y = mass)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = point_alpha) +
+  scale_y_log10() + 
+  theme_bw() + 
+  xlab("") +
+  ylab("Mass (g)") +
+  ggtitle(paste0("Flake Mass: ", t_test_str_l_mass))
+```
+
+Are the levallois pieces bigger by max dimension?
+
+```{r}
+# is it significant?
+t_test_str_l_maxdim <- 
+apa_print(t.test(data = flakes_L, 
+                 max_dimension ~ L))$statistic %>% 
+  str_remove_all("\\$|\\{|\\}|\\\\|mathit")
+
+# plot
+compare_lev_non_lev_maxdim_plot <- 
+ggplot(flakes_L, aes(x = L, 
+                     y = max_dimension)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = point_alpha) +
+  scale_y_log10() + 
+  theme_bw() + 
+  xlab("") +
+  ylab("Maximum Dimension (mm)") +
+  ggtitle(paste0("Flake Max. Dim.: ", t_test_str_l_maxdim))
+```
+
+Are the levallois pieces bigger by thickness?
+
+```{r}
+# is it significant?
+t_test_str_l_thick <- 
+apa_print(t.test(data = flakes_L,
+                 `Thickness_50%max` ~ L))$statistic %>% 
+  str_remove_all("\\$|\\{|\\}|\\\\|mathit")
+
+# plot
+compare_lev_non_lev_thick_plot <- 
+ggplot(flakes_L, aes(x = L, 
+                     y = `Thickness_50%max`)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = point_alpha) +
+  scale_y_log10() + 
+  theme_bw() + 
+  xlab("") +
+  ylab("Thickness (mm)") +
+  ggtitle(paste0("Flake Thickness: ", t_test_str_l_thick))
+```
+
+## Comparison of Quina tools vs non-Quina tools
+
+Do the Quina tools have different edge angles?
+
+```{r}
+library(reshape2)
+edge_angle_2 <- edge_angle
+
+edge_angle_2[, 2:(ncol(edge_angle_2)-1)] <- atan(edge_angle[, 2:(ncol(edge_angle_2)-1)]/2/3)/pi*180*2
+
+df_angle <- melt(edge_angle_2[, 1:(ncol(edge_angle_2)-1)])
+
+df_angle$variable <- substr(df_angle$variable, 1, 9)
+
+colnames(df_angle)[2:3] <- c("section", "angle")
+
+quina_id <- flakes$number[which(flakes$type3 == "quina")]
+
+df_angle$quina <- ifelse(df_angle$number %in% quina_id, "Quina", "Non-Quina")
+
+# siginificance test
+t_test_str_q_angle <- 
+df_angle %>% 
+  drop_na("angle") %>% 
+  t.test(data = ., angle ~ quina) %>% 
+  apa_print %>% 
+  .$statistic %>% 
+  str_remove_all("\\$|\\{|\\}|\\\\|mathit")
+
+compare_qui_non_qui_angle_plot <-
+  ggplot(df_angle,
+         aes(y = angle,
+             x = quina)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = point_alpha) +
+  theme_bw() +
+  ylab("Edge angle (\u00B0)") +
+  xlab("") +
+  ggtitle(paste0("Flake Edge Angle: ", t_test_str_q_angle) )
+
+```
+
+Do the Quina tools have different thickness?
+
+```{r}
+df_thick <- melt(flakes[, c("number", "Thickness_25%max", "Thickness_50%max", "Thickness_75%max")])
+
+df_thick$quina <- ifelse(df_thick$number %in% quina_id, "Quina", "Non-Quina")
+
+df_thick$label <- substring(df_thick$variable, 11, 13)
+
+df_thick_tt_test <- 
+df_thick %>% 
+  nest_by(label) %>% 
+  mutate(t_test = list(
+    t.test(data = data, value ~ quina) %>% 
+      apa_print %>% 
+      .$statistic %>% 
+  str_remove_all("\\$|\\{|\\}|\\\\|mathit")
+  ))
+
+compare_qui_non_qui_thick_plot <-
+  ggplot(df_thick,
+         aes(y = value,
+             x = quina)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = 0.05) +
+  geom_text(data = df_thick_tt_test,
+            aes(label = t_test,
+                x = 1.5, 
+                y = 60)) +
+  theme_bw() +
+  facet_wrap(~label) +
+  ylab("Thickness (mm)") + 
+  xlab("") 
+
+```
+
+Do the Quina tools have different GIUR?
+
+```{r}
+# plot GIUR on Quina  --------------------------------------------------
+
+## calculate GIUR
+
+# get tn
+df_giur_tn <- retouch[, c(1,8,10,12,14,16,18,20,22)]
+
+# divide tn by Tn
+df_giur <- df_giur_tn[, -1] / retouch[, c(9,11,13,15,17,19,21,23)]
+
+# compute GIUR as average of all zones
+df_giur_values <- 
+df_giur %>% 
+  as_tibble %>% 
+  rowwise %>% 
+  mutate(GIUR = mean(c_across(section_1_t:section_8_t), 
+                     na.rm = TRUE)) %>% 
+  select(GIUR)
+
+df_giur_values$number <- df_giur_tn$number
+
+df_giur_clustered <- 
+  left_join(df_giur_values, 
+            flakes_clustered[, c("number", "cluster")]) %>% 
+  drop_na() %>% 
+  filter(GIUR <= 1)
+
+df_giur_clustered$quina <- ifelse(df_giur_clustered$number %in% quina_id, "Quina", "Non-Quina")
+
+df_giur_clustered_tt_test <- 
+df_giur_clustered %>% 
+    t.test(data = ., 
+           GIUR ~ quina) %>% 
+      apa_print %>% 
+      .$statistic %>% 
+  str_remove_all("\\$|\\{|\\}|\\\\|mathit")
+
+# code for raincloud plot
+source("https://gist.githubusercontent.com/benmarwick/2a1bb0133ff568cbe28d/raw/fb53bd97121f7f9ce947837ef1a4c65a73bffb3f/geom_flat_violin.R")
+
+compare_qui_non_qui_giur_plot <-
+  ggplot(df_giur_clustered) +
+  aes(y = GIUR,
+      x = quina) +
+  geom_flat_violin(position = position_nudge(x = .25, 
+                                             y = 0), 
+                   alpha = .8,
+                   adjust = 0.35)  +
+  geom_quasirandom( 
+             size = .75, 
+             width = 0.25,
+             alpha = point_alpha) +
+  geom_boxplot(
+        width = .25, 
+               outlier.shape = NA, 
+               alpha = 0.25
+               ) +
+  ggtitle(paste0("Flake GIUR: ", df_giur_clustered_tt_test)) +
+  coord_flip() +
+  theme_bw() +
+  ylab("GIUR") +
+  xlab("")
+
+```
+
+Plot combining multiple panels
+
+```{r}
+## plot figures together.
+library(cowplot)
+figure_leva_quina <-
+  cowplot::plot_grid(plot_grid(compare_lev_non_lev_mass_plot, 
+                               compare_lev_non_lev_maxdim_plot, 
+                               compare_lev_non_lev_thick_plot ,
+                               labels = "auto",
+                               label_size = 12,
+                               ncol = 3),
+                     plot_grid( 
+                               compare_qui_non_qui_thick_plot ,
+                               labels = c("d"),
+                               label_size = 12,
+                               ncol = 1,
+                               rel_widths = c(1,2)),
+                     plot_grid(compare_qui_non_qui_angle_plot,
+                               compare_qui_non_qui_giur_plot , 
+                               labels= c("e", "f"),
+                               ncol = 2,
+                               #rel_widths = c(1.5, 1),
+                               label_size = 12),
+                     nrow = 3,
+                     align = 'v',
+                     axis = 'lr',
+                     vjust = 1.5,
+                     hjust = -0.5,
+                     scale = 0.9) #
+
+save_plot(here::here("analysis/figures/fig-1-Figures-for-Leva-and-quina.png"),
+                     figure_leva_quina,
+          base_aspect_ratio = 1,
+          base_height = 10, #18,
+          base_width =  14) #22)
+```
+
+
 
 <!-- The following line inserts a page break  -->
 

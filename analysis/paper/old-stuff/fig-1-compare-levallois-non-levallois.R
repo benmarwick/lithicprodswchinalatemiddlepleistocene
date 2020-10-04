@@ -202,9 +202,9 @@ p_thick_quina <-
 
 ## calculate GIUR
 
-df_giur <- retouch[, c(1,8,10,12,14,16,18,20,22)]
+df_giur_tn <- retouch[, c(1,8,10,12,14,16,18,20,22)]
 
-df_giur[, -1] <- df_giur[, -1] / retouch[, c(9,11,13,15,17,19,21,23)]
+df_giur[, -1] <- df_giur_tn[, -1] / retouch[, c(9,11,13,15,17,19,21,23)]
 
 df_giur_clustered <- left_join(df_giur, flakes_clustered[, c("number", "cluster")])
 
@@ -215,7 +215,8 @@ df_giur_clustered$quina <- ifelse(df_giur_clustered$number %in% quina_id, "Quina
 df_giur_clustered_melt_2 <- melt(df_giur_clustered[,-1], id.vars = "quina")
 
 p_GIUR_quina <-
-  ggplot(na.omit(df_giur_clustered_melt_2[df_giur_clustered_melt_2$value <=1,]), aes(value)) +
+  ggplot(na.omit(df_giur_clustered_melt_2[df_giur_clustered_melt_2$value <=1,]),
+         aes(value)) +
   geom_histogram(binwidth = 0.1) +
   theme_bw() +
   theme(text = element_text(size = 20)) +
