@@ -102,15 +102,6 @@ flakes$retouched <- ifelse(grepl("ret", flakes$type1), "retouched", "unretouched
 flakes <- flakes[!flakes$material %in% c('sandstone', 'quartz'),]
 ```
 
-
-Results of descriptive statistics for Levallois and non-Levallois flakes. ‘PLF’ stands for preferential Levallois flake; ‘CF’ stands for complete flake.
-
-```{r}
-point_alpha <- 0.1
-```
-
-## Comparison of Levallois flakes vs non-Levallois flakes
-
 Separate Levallois and Non-Levallois flakes for comparison
 
 ```{r}
@@ -120,7 +111,26 @@ library(papaja)
 
 # clean data to help with analysis
 flakes$retouched <- ifelse(grepl("ret", flakes$type1), "retouched", "unretouched")
-flakes <- flakes[!flakes$material %in% c('sandstone', 'quartz'),]
+flakes <-
+  flakes[!flakes$material %in% c('sandstone', 'quartz'), ] %>%
+  mutate(complet_flk = ifelse(
+    type1 %in% c(
+      "flake",
+      "blade",
+      "KBW",
+      "tablet",
+      "leva",
+      "leva?",
+      "DBD",
+      "crest"
+    ),
+    "complete flake",
+    ifelse(
+      type1 %in% c("flake brk", "blade brk", "LVFB", "proximal"),
+      "flake breaks",
+      "other"
+    )
+  )) 
 
 # how many levallois?
 # unique(flakes$type1)
@@ -133,12 +143,109 @@ non_leva <- flakes %>%
   filter(!grepl("LVT|LVF|LVFB", type1))
 
 flakes_L <-  
-  mutate(flakes, L = ifelse(grepl("LVT|LVF|LVFB", type1), "Levallois", "Non-Levallois"))
+  mutate(flakes, L = ifelse(grepl("LVT|LVF|LVFB", type1), 
+                            "Levallois", "Non-Levallois"))  
 ```
+
+Results of descriptive statistics for Levallois and non-Levallois flakes. ‘PLF’ stands for preferential Levallois flake; ‘CF’ stands for complete flake.
+
+```{r}
+flakes_complete_non_Lev <- 
+  flakes_L %>% # only complete flakes for non-Levallois
+  filter(complet_flk == "complete flake")
+
+flakes_Lev  <- 
+  flakes_L %>% 
+  filter(L == "Levallois")
+
+# combine both here
+flakes_Lev_non_Lev <- 
+bind_rows(flakes_complete_non_Lev,
+          flakes_Lev) %>% 
+  as_tibble()
+  
+
+# check the CVs
+CV <- function(the_vector){
+  mean_ <- mean(the_vector, na.rm = TRUE)
+  sd_ <- sd(the_vector, na.rm = TRUE)
+  cv <- (sd_/mean_) * 100
+  round(cv, 3)
+}
+
+# prepare mean and sd functions
+mean_t <- function(x) mean(x, na.rm = TRUE)
+sd_t <- function(x) sd(x, na.rm = TRUE)
+
+# for the table 'Results of descriptive statistics for Levallois and non-Levallois flakes. ‘PLF’ stands for preferential Levallois flake; ‘CF’ stands for complete flake.'
+compare_lev_non_lev_vars_tbl <- 
+flakes_Lev_non_Lev %>% 
+  as_tibble() %>% 
+  select(L, where(is.numeric)) %>% 
+  group_by(L) %>% 
+  summarise(across(where(is.numeric),
+            list(mean = mean_t,
+                 sd = sd_t,
+                 cv = CV),
+            .names = "{.fn}.{.col}")) %>%
+  pivot_longer(-L) %>%
+  separate(col = name,
+           into = c("stat", "var"),
+           sep = "\\.") %>% 
+  mutate(L = ifelse(L == "Levallois",
+                    "PLF",
+                    "CF")) %>% 
+  unite("lev_stat", c(stat, L), 
+        sep = "_") %>% 
+  pivot_wider(names_from = lev_stat ) %>% 
+  mutate(difference_in_cv = cv_PLF - `cv_CF`) %>% 
+  mutate(across(where(is.numeric), round, 2))
+
+library(gt) 
+tab <- 
+  compare_lev_non_lev_vars_tbl %>%
+  gt(rowname_col = "var") %>% 
+  tab_spanner(
+    label = "Mean (mm)",
+    columns = vars(mean_PLF, 
+                   mean_CF)) %>% 
+  tab_spanner(
+    label = "SD",
+    columns = vars(sd_PLF, 
+                   sd_CF)  
+  ) %>% 
+  tab_spanner(
+    label = "CV (%)",
+    columns = vars(cv_PLF, 
+                   cv_CF,
+                   difference_in_cv) 
+  )
+
+```
+
+Are CV values lower for Levallois flakes than for non-Levallois flakes?
+
+```{r}
+compare_lev_non_lev_vars_tbl  %>% 
+  select(contains("cv_")) %>% 
+  stack() %>% 
+  wilcox.test(values ~ ind, 
+              data = .) %>% 
+  apa_print() %>% 
+  .$statistic %>% 
+  str_remove_all("\\$|\\{|\\}|\\\\|mathit")
+
+```
+
+
+## Comparison of Levallois flakes vs non-Levallois flakes
 
 Are the levallois pieces bigger by mass?
 
 ```{r}
+# plotting setting
+point_alpha <- 0.1
+
 # is it significant?
 t_test_str_l_mass <- 
 apa_print(t.test(data = flakes_L, mass ~ L))$statistic %>% 

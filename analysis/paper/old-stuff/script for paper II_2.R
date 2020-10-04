@@ -441,7 +441,7 @@ flake_summary <- rbind(flake_summary,
 
 print("table for flake attributes")
 
-kable(round(flake_summary, digits = 1))
+knitr::kable(round(flake_summary, digits = 1))
 
 ## how many flake type1
 
