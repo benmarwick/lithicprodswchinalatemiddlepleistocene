@@ -1,34 +1,5 @@
 ---
 title: "Supplementary Information for Diverse lithic production strategies in southwest China during Late Middle Pleistocene"
-author:
-  - Myfirstname Mylastname:
-      email: fl@oneplace.edu
-      institute: [UofO]
-      correspondence: true
-  - Yourfirstname Yourlastname:
-      email: fl@another.edu
-      institute: [UofA]
-      correspondence: false
-institute:
-  - UofO: University of One Place
-  - UofA: University of Another Place
-date: "`r format(Sys.time(), '%d %B, %Y')`"
-output: 
-    bookdown::word_document2:
-      fig_caption: yes
-      reference_docx: "../templates/template.docx" # Insert path for the DOCX file
-      pandoc_args:
-      - --lua-filter=../templates/scholarly-metadata.lua
-      - --lua-filter=../templates/author-info-blocks.lua
-      - --lua-filter=../templates/pagebreak.lua
-bibliography: references.bib
-csl: "../templates/journal-of-archaeological-science.csl" # Insert path for the bib-style
-abstract: |
-  Text of abstract
-keywords: |
-  keyword 1; keyword 2; keyword 3
-highlights: |
-  These are the highlights. 
 ---
 
 <!-- This is the format for text comments that will be ignored during renderings. Do not put R code in these comments because it will not be ignored. -->
@@ -46,7 +17,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   warning = FALSE,
   message = FALSE,
-  echo = FALSE,
+  echo = TRUE,
   comment = "#>",
   fig.path = "../figures/",
   dpi = 300
@@ -60,6 +31,7 @@ Read in the data.
 ```{r get-data}
 # Note the path that we need to use to access our data files when rendering this document
 library(readxl)
+library(tidyverse)
 
 file_name <- here::here("analysis/data/raw_data/artefacts-after Sam_Dec2018_quina_modified.xls") 
 
@@ -221,6 +193,8 @@ tab <-
                    difference_in_cv) 
   )
 
+tab
+
 ```
 
 Are CV values lower for Levallois flakes than for non-Levallois flakes?
@@ -262,6 +236,8 @@ ggplot(flakes_L, aes(x = L,
   xlab("") +
   ylab("Mass (g)") +
   ggtitle(paste0("Flake Mass: ", t_test_str_l_mass))
+
+compare_lev_non_lev_mass_plot
 ```
 
 Are the levallois pieces bigger by max dimension?
@@ -284,6 +260,8 @@ ggplot(flakes_L, aes(x = L,
   xlab("") +
   ylab("Maximum Dimension (mm)") +
   ggtitle(paste0("Flake Max. Dim.: ", t_test_str_l_maxdim))
+
+compare_lev_non_lev_maxdim_plot
 ```
 
 Are the levallois pieces bigger by thickness?
@@ -306,6 +284,8 @@ ggplot(flakes_L, aes(x = L,
   xlab("") +
   ylab("Thickness (mm)") +
   ggtitle(paste0("Flake Thickness: ", t_test_str_l_thick))
+
+compare_lev_non_lev_thick_plot
 ```
 
 ## Comparison of Quina tools vs non-Quina tools
@@ -348,6 +328,8 @@ compare_qui_non_qui_angle_plot <-
   xlab("") +
   ggtitle(paste0("Flake Edge Angle: ", t_test_str_q_angle) )
 
+compare_qui_non_qui_angle_plot
+
 ```
 
 Do the Quina tools have different thickness?
@@ -383,6 +365,8 @@ compare_qui_non_qui_thick_plot <-
   facet_wrap(~label) +
   ylab("Thickness (mm)") + 
   xlab("") 
+
+compare_qui_non_qui_thick_plot
 
 ```
 
@@ -452,6 +436,8 @@ compare_qui_non_qui_giur_plot <-
   ylab("GIUR") +
   xlab("")
 
+compare_qui_non_qui_giur_plot
+
 ```
 
 Plot combining multiple panels
@@ -490,19 +476,10 @@ save_plot(here::here("analysis/figures/fig-1-Figures-for-Leva-and-quina.png"),
           base_aspect_ratio = 1,
           base_height = 10, #18,
           base_width =  14) #22)
+
+figure_leva_quina
 ```
 
-
-
-<!-- The following line inserts a page break  -->
-
-\newpage
-
-# References 
-
-<!-- The following line ensures the references appear here for the MS Word or HTML output files, rather than right at the end of the document (this will not work for PDF files):  -->
-
-<div id="refs"></div>
 
 \newpage
 
