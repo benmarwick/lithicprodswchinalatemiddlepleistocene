@@ -119,7 +119,7 @@ flakes_L <-
                             "Levallois", "Non-Levallois"))  
 ```
 
-Results of descriptive statistics for Levallois and non-Levallois flakes. ‘PLF’ stands for preferential Levallois flake; ‘CF’ stands for complete flake.
+Results of descriptive statistics for Levallois and non-Levallois flakes. ‘PLF’ stands for preferential Levallois flake; ‘CF’ stands for complete flake. This is table 1 in the main text
 
 ```{r}
 flakes_complete_non_Lev <- 
@@ -197,7 +197,7 @@ tab
 
 ```
 
-Are CV values lower for Levallois flakes than for non-Levallois flakes?
+Are CV values lower for Levallois flakes than for non-Levallois flakes? This result is presented in line in the text in the main text.
 
 ```{r}
 compare_lev_non_lev_vars_tbl  %>% 
@@ -214,7 +214,7 @@ compare_lev_non_lev_vars_tbl  %>%
 
 ## Comparison of Levallois flakes vs non-Levallois flakes
 
-Are the levallois pieces bigger by mass?
+Are the levallois pieces bigger by mass? 
 
 ```{r}
 # plotting setting
@@ -440,7 +440,7 @@ compare_qui_non_qui_giur_plot
 
 ```
 
-Plot combining multiple panels
+Plot combining multiple panels, this is Figure 1 is the main text
 
 ```{r}
 ## plot figures together.
