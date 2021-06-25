@@ -14,7 +14,8 @@ library(gridExtra)
 
 # read in the data
 
-file_name <- here::here("analysis/data/raw_data/artefacts-after Sam_May2020_quina_modified.xls")
+file_name <-
+  here::here("analysis/data/raw_data/artefacts-after Sam_Dec2018_quina_modified-2019.xls")
 
 flakes <- as.data.frame(read_excel(file_name, sheet = "flake basics"))
 cores <- as.data.frame(read_excel(file_name, sheet = "core basics"))
@@ -322,15 +323,24 @@ print("summary for core platform preparation")
 # what are these platform types?
 unique(cores$platform_preparation)
 
-# cores <-
-#   cores %>%
-#   mutate(platform_preparation = case_when(
-#
-#
-#   ))
+cores <-
+  cores %>%
+  mutate(platform_preparation = case_when(
+    platform_preparation == "over" ~ 'overhang\nremoval',
+    platform_preparation == "plane" ~ 'plain',
+    platform_preparation == "faceted" ~ 'facetted',
+    platform_preparation == "cortex" ~ 'cortical',
+    platform_preparation == "dehid" ~ 'dihedral'
+  )) %>%
+  drop_na(platform_preparation)
 
+# "over"    "plain"   "plane"   "faceted"  "n"    "cortex"  "dehid".
+# 'overhang removal', 'plain' (same as plane?), 'facetted', 'cortical', 'dihedral'
 
-p_core_plat_prep <- f(cores, "platform_preparation") + xlab("Platform preparation") + ylab("Count")
+p_core_plat_prep <- f(cores, "platform_preparation") +
+  xlab("Platform preparation") +
+  ylab("Count") +
+  coord_flip()
 
 core_plat_type <-  table(na.omit(cores$platform_preparation))
 
@@ -421,7 +431,7 @@ figure_cores <-
                      hjust = -0.5,
                      scale = 0.95) #
 
-save_plot("Figures for cores.png", figure_cores,
+save_plot("analysis/figures/S2 figures for cores.png", figure_cores,
           base_aspect_ratio = 1,
           base_height = 13,
           base_width = 21)
@@ -641,10 +651,13 @@ p_flake_scar_number <- ggplot(flakes, aes(`scar_number`)) +
         axis.title.x = element_text(size = 25),
         axis.title.y = element_text(size = 25))
 
-flakes$scar_group <- ifelse(flakes$`scar_number` > 5, "more_than_5", "less_than_5")
+flakes$scar_group <- ifelse(flakes$`scar_number` > 5, "more than 5", "less than 5")
 
-p_flake_scar_number_2 <- ggplot(flakes[!is.na(flakes$scar_group), ], aes(mass, x = scar_group)) +
-  geom_boxplot() + xlab("Number of scars") + ylab("Mass (g)")+
+p_flake_scar_number_2 <- ggplot(flakes[!is.na(flakes$scar_group), ],
+                                aes(mass, x = scar_group)) +
+  geom_boxplot() +
+  xlab("Number of scars") +
+  ylab("Mass (g)")+
   scale_y_log10()+ theme_bw() +theme(text = element_text(size = 20))+
   theme(axis.text.x = element_text(size = 20),
         axis.text.y = element_text(size = 20),
@@ -697,8 +710,8 @@ print("compare cortex for ret and non-retouched flakes")
 
 p_flakes_cortex_ret <- ggplot(flakes, aes(x = cortex_percentage, fill = retouched)) +
   geom_histogram(binwidth = 10, position='dodge') +
-  xlab("Cortex percentage (%)") + ylab("Count")
-  theme_bw() +theme(text = element_text(size = 20))
+  xlab("Cortex percentage (%)") + ylab("Count") +
+  theme_bw() + theme(text = element_text(size = 20))
 
 ### ratio between length and oriented thickness
 
@@ -817,7 +830,7 @@ figure_flake_1 <-
                      hjust = -0.5,
                      scale = 0.95) #
 
-save_plot("Figures for flakes_1.png", figure_flake_1,
+save_plot("analysis/figures/S4 Figures for flakes_1.png", figure_flake_1,
           base_aspect_ratio = 1,
           base_height = 20,
           base_width = 21)
@@ -919,7 +932,7 @@ p_thick_quina <- ggplot(df_thick, aes(x = value, col = quina)) + geom_density() 
         legend.text = element_text(size = 15),
         strip.text = element_text(size = 18),
         legend.position = c(0.9, 0.9),
-        legend.title = element_blank())+ theme(plot.margin=margin(10,10,10,10))
+        legend.title = element_blank()) + theme(plot.margin=margin(10,10,10,10))
 
 # plot the thickness of 50% max
 
@@ -970,7 +983,8 @@ p_edge_number <-  ggplot(retouch, aes(`number of edge`)) +
   theme(axis.text.x = element_text(size = 20),
         axis.text.y = element_text(size = 20),
         axis.title.x = element_text(size = 25),
-        axis.title.y = element_text(size = 25))+ theme(plot.margin=margin(10,10,10,10))
+        axis.title.y = element_text(size = 25))+
+  theme(plot.margin=margin(10,10,10,10))
 
 ## number of layers for each number of edge
 
@@ -982,17 +996,24 @@ retouch$edges <- ifelse(retouch$`number of edge` > 3, "edge no. > 3",
                         paste("edge no. = ", retouch$`number of edge`))
 
 p_edge_layer <- data.frame(table(retouch[,c("layers", "edges")])) %>%
-  ggplot(aes(x = layers, y = Freq)) +
+  mutate(edges =  str_remove(edges, "edge no. ")) %>%
+  mutate(edges =  str_squish(str_remove(edges, "="))) %>%
+  mutate(edges =  factor(edges, levels = c("0", "1", "2", "3", "> 3"))) %>%
+  ggplot(aes(x = edges,
+             y = Freq,
+             fill = layers)) +
   geom_bar(stat = "identity") +
   ylab("n") +
-  xlab("") +
+  xlab("Number of edges") +
   theme_bw() +
-  theme(axis.text.x = element_text(size = 20, angle = 45, hjust = 1, vjust = 1),
+  theme(axis.text.x = element_text(size = 20),
                     axis.text.y = element_text(size = 20),
                     axis.title.x = element_text(size = 25),
                     axis.title.y = element_text(size = 25)) +
-  facet_wrap(~edges, scales = "free_y", nrow = 1)+
-  theme(plot.margin=margin(10,10,10,10)) + theme(strip.text = element_text(size = 18))
+  theme(plot.margin=margin(10,10,10,10)) +
+  theme(strip.text = element_text(size = 18),
+        legend.position = c(0.8, 0.9),
+        legend.title = element_blank())
 
 # scar number and direction
 
@@ -1081,45 +1102,84 @@ df_giur_clustered_melt %>%
   filter(variable == "mean_giur") %>%
   filter(!is.na(cluster))
 
-p_GIUR_mass <-
-  ggplot(na.omit(df_giur_clustered_melt[df_giur_clustered_melt$value <= 1,]),
-                      aes(value)) +
-  geom_histogram(binwidth = 0.1) +
-  theme_bw() +
-  xlab("GIUR") +
-  ylab("Count") +
-  facet_wrap(~label, scales = "free_y", nrow = 1) +
-  theme(axis.text.x = element_text(size = 20),
-        axis.text.y = element_text(size = 20),
-        axis.title.x = element_text(size = 25),
-        axis.title.y = element_text(size = 25)) + theme(plot.margin=margin(10,10,10,10))
-
 ## calculate the median GIUR for each group
 
 print("the median GIUR for each group")
 
 tapply(df_giur_clustered_melt$value, df_giur_clustered_melt$cluster, median, na.rm=TRUE)
 
+df_giur_clustered_melt_medians <-
+df_giur_clustered_melt %>%
+  group_by(label) %>%
+  summarise(median_giur = median(value))
 
+giur_overall_median <- tibble(giur_overall_median = median(df_giur_clustered_melt$value))
+
+library(ggbeeswarm)
+p_GIUR_mass <-
+  ggplot(na.omit(df_giur_clustered_melt[df_giur_clustered_melt$value <= 1,]),
+                      aes(label, value)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = 0.2) +
+  theme_bw() +
+  ylab("GIUR") +
+  xlab("") +
+  theme(axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25)) + theme(plot.margin=margin(10,10,10,10))
 
 # Invasiveness index
 print("results for invasiveness index")
 
 df_invasive <- retouch[, c(1, 24:39)]
 
-df_invasive_clustered <- left_join(df_invasive, flakes_clustered[, c("number", "cluster")])
+# need to compute the II as sum of each section divided by the number of sections
+df_invasive_ii <-
+df_invasive %>%
+  rowwise() %>%
+  mutate(II = sum(section_1_II,
+                  section_2_II,
+                  section_3_II,
+                  is.numeric(section_4_II),
+                  section_5_II,
+                  section_6_II,
+                  section_7_II,
+                  section_8_II,
+                  section_9_II,
+                  section_10_II,
+                  section_11_II,
+                  section_12_II,
+                  section_13_II,
+                  section_14_II,
+                  section_15_II,
+                  section_16_II,
+                  na.rm = TRUE) / 16) %>%
+  dplyr::select(number, II)
 
-df_invasive_clustered_melt <- melt(df_invasive_clustered[,-1], id.vars = "cluster")
+df_invasive_clustered <- left_join(df_invasive_ii, flakes_clustered[, c("number", "cluster")])
 
-invasive_table <- as.data.frame(table(df_invasive_clustered_melt[, c("cluster", "value")]))
+df_invasive_clustered_melt <-
+  melt(df_invasive_clustered[,-1], id.vars = "cluster") %>%
+  filter(!is.na(cluster)) %>%
+  mutate(label = paste0("Cluster ", cluster))
 
-p_invasive <- ggplot(invasive_table[invasive_table$value %in% c(0.5, 1.0), ],
-                    aes(fill=value, y= Freq, x=cluster)) +
-  geom_bar( stat="identity", position="fill", width = 0.6) + theme_bw() +
-  theme(text = element_text(size = 20)) +
-  theme(axis.text=element_text(size=18),
-        axis.title=element_text(size=25,face="bold")) +
-  theme(legend.text=element_text(size=18)) + theme(plot.margin=margin(10,10,10,10))
+II_overall_median <- tibble(II_overall_median = median(df_invasive_clustered_melt$value))
+
+p_II <-
+  ggplot(df_invasive_clustered_melt) +
+         aes(as.factor(label),
+             value) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = 0.1) +
+  theme_bw() +
+  xlab("") +
+  ylab("II") +
+  ylim(0, 0.5) +
+  theme(axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25)) + theme(plot.margin=margin(10,10,10,10))
 
 
 ### plot together
@@ -1127,22 +1187,31 @@ p_invasive <- ggplot(invasive_table[invasive_table$value %in% c(0.5, 1.0), ],
 figure_retouch <-
   cowplot::plot_grid(plot_grid(p_flake_ret_dim,
                                p_edge_shape,
-                               p_edge_angle, ncol = 3, labels = "auto", label_size = 26),
-                     plot_grid(p_GIUR_mass, ncol = 1, labels = "d", label_size = 26),
-                     plot_grid(p_invasive,
+                               p_edge_angle, ncol = 3,
+                               labels = "auto",
+                               label_size = 26,
+                               align = 'vh',
+                               axis = 'lr'),
+                     plot_grid(p_GIUR_mass,
+                               p_II,
+                               ncol = 1, labels = c("d", "e"), label_size = 26),
+                     plot_grid(
                                p_edge_number,
                                p_edge_layer,
-                               ncol = 3, rel_widths = c(1,1,1.5),
-                               labels = c("e", "f", "g"), label_size = 26),
+                               ncol = 2, rel_widths = c(1.5,1.5),
+                               labels = c( "f", "g"),
+                               label_size = 26,
+                               align = 'vh',
+                               axis = 'lr'),
                      ncol = 1,
-                     align = 'v',
+                     align = 'vh',
                      axis = 'lr',
                      #rel_heights = c(1, 1.5),
                      vjust = 1,
                      hjust = -0.5,
                      scale = 0.9) #
 
-save_plot("Figures for retouch.png", figure_retouch,
+save_plot("analysis/figures/S8 Figures for retouch.png", figure_retouch,
           base_aspect_ratio = 1,
           base_height = 21,
           base_width = 22)

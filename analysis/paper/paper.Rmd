@@ -33,7 +33,8 @@ Read in the data.
 library(readxl)
 library(tidyverse)
 
-file_name <- here::here("analysis/data/raw_data/artefacts-after Sam_Dec2018_quina_modified.xls") 
+file_name <-
+  here::here("analysis/data/raw_data/artefacts-after Sam_Dec2018_quina_modified-2019.xls")
 
 flakes <- as.data.frame(read_excel(file_name, sheet = "flake basics"))
 cores <- as.data.frame(read_excel(file_name, sheet = "core basics"))
@@ -376,36 +377,30 @@ Do the Quina tools have different GIUR?
 # plot GIUR on Quina  --------------------------------------------------
 
 ## calculate GIUR
+# looking at the GIUR data... there are some duplicate artefact numbers, which is a nuisance
 
-# get tn
-df_giur_tn <- retouch[, c(1,8,10,12,14,16,18,20,22)]
+# make the number ID unique
+retouch$number <- make.unique(as.character(retouch$number), sep = "_")
 
-# divide tn by Tn
-df_giur <- df_giur_tn[, -1] / retouch[, c(9,11,13,15,17,19,21,23)]
+retouch_giur_per_section <-
+  retouch %>%
+  dplyr::select(grep("^number$|_t|_T", names(retouch))) %>%
+  gather(variable, value, -number) %>%
+  separate(variable, c("section", "tee"), sep = 10) %>%
+  pivot_wider(names_from =  tee, values_from = value) %>%
+  mutate(t_T = t / T)  %>%
+  filter(t_T <= 1)
 
-# compute GIUR as average of all zones
-df_giur_values <- 
-df_giur %>% 
-  as_tibble %>% 
-  rowwise %>% 
-  mutate(GIUR = mean(c_across(section_1_t:section_8_t), 
-                     na.rm = TRUE)) %>% 
-  select(GIUR)
-
-df_giur_values$number <- df_giur_tn$number
-
-df_giur_clustered <- 
-  left_join(df_giur_values, 
-            flakes_clustered[, c("number", "cluster")]) %>% 
-  drop_na() %>% 
-  filter(GIUR <= 1)
-
-df_giur_clustered$quina <- ifelse(df_giur_clustered$number %in% quina_id, "Quina", "Non-Quina")
+retouch_giur_per_artefact <-
+  retouch_giur_per_section %>%
+  group_by(number) %>%
+  summarise(mean_giur = mean(t_T, na.rm = TRUE)) %>% 
+  mutate(quina = ifelse(number %in% quina_id, "Quina", "Non-Quina"))
 
 df_giur_clustered_tt_test <- 
-df_giur_clustered %>% 
+retouch_giur_per_artefact %>% 
     t.test(data = ., 
-           GIUR ~ quina) %>% 
+           mean_giur ~ quina) %>% 
       apa_print %>% 
       .$statistic %>% 
   str_remove_all("\\$|\\{|\\}|\\\\|mathit")
@@ -414,15 +409,15 @@ df_giur_clustered %>%
 source("https://gist.githubusercontent.com/benmarwick/2a1bb0133ff568cbe28d/raw/fb53bd97121f7f9ce947837ef1a4c65a73bffb3f/geom_flat_violin.R")
 
 compare_qui_non_qui_giur_plot <-
-  ggplot(df_giur_clustered) +
-  aes(y = GIUR,
+  ggplot(retouch_giur_per_artefact) +
+  aes(y = mean_giur,
       x = quina) +
   geom_flat_violin(position = position_nudge(x = .25, 
                                              y = 0), 
                    alpha = .8,
                    adjust = 0.35)  +
   geom_quasirandom( 
-             size = .75, 
+             size = 1.5, 
              width = 0.25,
              alpha = point_alpha) +
   geom_boxplot(
