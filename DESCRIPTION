@@ -15,6 +15,28 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.0
 Imports: bookdown,
-    here
+    here,
+    Ckmeans.1d.dp,
+    classInt,
+    cowplot,
+    dplyr,
+    fitdistrplus,
+    forcats,
+    ggbeeswarm,
+    ggplot2,
+    glue,
+    gridExtra,
+    gt,
+    knitr,
+    papaja,
+    plyr,
+    purrr,
+    readr,
+    readxl,
+    reshape2,
+    rmarkdown,
+    stringr,
+    tidyr,
+    tidyverse
 Suggests: devtools,
     git2r

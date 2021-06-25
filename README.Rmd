@@ -11,7 +11,7 @@ knitr::opts_chunk$set(
   fig.path = "README-"
 )
 # Please put your title here to include it in the file below.
-Title <- "Title of your paper goes here"
+Title <- "Diverse lithic production strategies in southwest China during Late Middle Pleistocene "
 ```
 
 # lithicprodswchinalatemiddlepleistocene
@@ -20,18 +20,18 @@ Title <- "Title of your paper goes here"
 
 This repository contains the data and code for our paper:
 
-> Authors, (YYYY). _`r Title`_. Name of journal/book <https://doi.org/xxx/xxx>
+> Yue Hu, Ben Marwick, (nd). _`r Title`_.  <https://doi.org/xxx/xxx>
 
 Our pre-print is online here:
 
-> Authors, (YYYY). _`r Title`_. Name of journal/book, Accessed `r format(Sys.Date(), "%d %b %Y")`. Online at <https://doi.org/xxx/xxx>
+> Yue Hu, Ben Marwick, (nd). _`r Title`_. , Accessed `r format(Sys.Date(), "%d %b %Y")`. Online at <https://doi.org/xxx/xxx>
 
 
 ### How to cite
 
 Please cite this compendium as:
 
-> Authors, (`r format(Sys.Date(), "%Y")`). _Compendium of R code and data for `r Title`_. Accessed `r format(Sys.Date(), "%d %b %Y")`. Online at <https://doi.org/xxx/xxx>
+> Yue Hu, Ben Marwick, (`r format(Sys.Date(), "%Y")`). _Compendium of R code and data for `r Title`_. Accessed `r format(Sys.Date(), "%d %b %Y")`. Online at <https://doi.org/xxx/xxx>
 
 ## Contents
 
@@ -45,10 +45,6 @@ The **analysis** directory contains:
   - [:file\_folder: data](/analysis/data): Data used in the analysis.
   - [:file\_folder: figures](/analysis/figures): Plots and other
     illustrations
-  - [:file\_folder:
-    supplementary-materials](/analysis/supplementary-materials):
-    Supplementary materials including notes and other documents
-    prepared and collected during the analysis.
 
 ## How to run in your broswer or download and run locally
 

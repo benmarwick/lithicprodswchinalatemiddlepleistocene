@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Information for Diverse lithic production strategies in southwest China during Late Middle Pleistocene"
+title: "Diverse lithic production strategies in southwest China during Late Middle Pleistocene"
 ---
 
 <!-- This is the format for text comments that will be ignored during renderings. Do not put R code in these comments because it will not be ignored. -->
