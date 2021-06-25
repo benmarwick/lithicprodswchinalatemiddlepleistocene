@@ -11,10 +11,10 @@ knitr::opts_chunk$set(
   fig.path = "README-"
 )
 # Please put your title here to include it in the file below.
-Title <- "Diverse lithic production strategies in southwest China during Late Middle Pleistocene "
+Title <- "Diverse lithic production strategies in southwest China during Late Middle Pleistocene"
 ```
 
-# lithicprodswchinalatemiddlepleistocene
+# Diverse lithic production strategies in southwest China during Late Middle Pleistocene
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/benmarwick/lithicprodswchinalatemiddlepleistocene/master?urlpath=rstudio)
 
@@ -31,7 +31,7 @@ Our pre-print is online here:
 
 Please cite this compendium as:
 
-> Yue Hu, Ben Marwick, (`r format(Sys.Date(), "%Y")`). _Compendium of R code and data for `r Title`_. Accessed `r format(Sys.Date(), "%d %b %Y")`. Online at <https://doi.org/xxx/xxx>
+> Yue Hu, Ben Marwick, (`r format(Sys.Date(), "%Y")`). _Compendium of R code and data for `r Title`_. Accessed `r format(Sys.Date(), "%d %b %Y")`. Online at <https://doi.org/10.17605/OSF.IO/7B5QD>
 
 ## Contents
 
@@ -63,7 +63,7 @@ environment. These Docker images can also be used locally.
 You can download the compendium as a zip from from this URL:
 [master.zip](/archive/master.zip). After unzipping:
 - open the `.Rproj` file in RStudio
-- run `devtools::install()` to ensure you have the packages this analysis depends on (also listed in the
+- run `renv::restore()` to ensure you have the packages this analysis depends on (also listed in the
 [DESCRIPTION](/DESCRIPTION) file).
 - finally, open `analysis/paper/paper.Rmd` and knit to produce the `paper.docx`, or run `rmarkdown::render("analysis/paper/paper.Rmd")` in the R console
 
