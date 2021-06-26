@@ -28,7 +28,6 @@ Imports: bookdown,
     gridExtra,
     gt,
     knitr,
-    papaja,
     plyr,
     purrr,
     readr,
@@ -40,3 +39,4 @@ Imports: bookdown,
     tidyverse
 Suggests: devtools,
     git2r
+Remotes: crsh/papaja
