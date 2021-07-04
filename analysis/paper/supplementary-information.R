@@ -330,8 +330,10 @@ cores <-
     platform_preparation == "plane" ~ 'plain',
     platform_preparation == "faceted" ~ 'facetted',
     platform_preparation == "cortex" ~ 'cortical',
-    platform_preparation == "dehid" ~ 'dihedral'
+    platform_preparation == "dehid" ~ 'dihedral',
+    TRUE ~ as.character(platform_preparation)
   )) %>%
+  filter(platform_preparation != "n") %>%
   drop_na(platform_preparation)
 
 # "over"    "plain"   "plane"   "faceted"  "n"    "cortex"  "dehid".
@@ -364,7 +366,6 @@ core_plat_rotat <-  table(na.omit(cores$rotations))
 
 round(prop.table(core_plat_rotat), digits = 4)*100
 
-
 ## core reduction type
 print("summary for core reduction type")
 
@@ -386,7 +387,6 @@ p_core_scar_number <- ggplot(cores, aes(scar_number)) +
         axis.text.y = element_text(size = 20),
         axis.title.x = element_text(size = 25),
         axis.title.y = element_text(size = 25))
-
 
 core_scar_table <- table(na.omit(cores$scar_number))
 
