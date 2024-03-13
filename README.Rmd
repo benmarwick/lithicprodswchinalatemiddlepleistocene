@@ -11,21 +11,14 @@ knitr::opts_chunk$set(
   fig.path = "README-"
 )
 # Please put your title here to include it in the file below.
-Title <- "Diverse lithic production strategies in southwest China during Late Middle Pleistocene"
+Title <- "Late Middle Pleistocene lithic technology at Guanyindong cave, Southwest China: Diversity and innovation during the Chinese Middle Palaeolithic"
 ```
 
-# Diverse lithic production strategies in southwest China during Late Middle Pleistocene
-
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/benmarwick/lithicprodswchinalatemiddlepleistocene/master?urlpath=rstudio)
+# Late Middle Pleistocene lithic technology at Guanyindong cave, Southwest China: Diversity and innovation during the Chinese Middle Palaeolithic
 
 This repository contains the data and code for our paper:
 
 > Yue Hu, Ben Marwick, (nd). _`r Title`_.  <https://doi.org/xxx/xxx>
-
-Our pre-print is online here:
-
-> Yue Hu, Ben Marwick, (nd). _`r Title`_. , Accessed `r format(Sys.Date(), "%d %b %Y")`. Online at <https://doi.org/xxx/xxx>
-
 
 ### How to cite
 

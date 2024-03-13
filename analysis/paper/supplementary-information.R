@@ -420,7 +420,7 @@ figure_cores <-
                      p_core_scar_number,
                      p_core_scar_length,
                      p_core_cortex,
-                     p_core_plat_prep,
+                    # p_core_plat_prep,
                      labels = "auto",
                      label_size = 26,
                      ncol = 3,
@@ -431,7 +431,7 @@ figure_cores <-
                      hjust = -0.5,
                      scale = 0.95) #
 
-save_plot("analysis/figures/S2 figures for cores.png", figure_cores,
+save_plot("analysis/figures/fig-3-cores.png", figure_cores,
           base_aspect_ratio = 1,
           base_height = 13,
           base_width = 21)
